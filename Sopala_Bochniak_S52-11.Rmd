@@ -1,0 +1,131 @@
+---
+title: "Projekt Zaliczeniowy - Modele Nieparametryczne"
+author: 
+  - "Hanna Sopala"
+  - "Iga Bochniak"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+<style>
+body {
+    text-align: justify;
+    max-width: 1000px;
+    margin: auto;
+    padding: 20px;
+    font-size: 16px;
+}
+</style>
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+<details>
+  <summary> Templatka zawijaczy kodu </summary>
+
+
+</details>
+
+```{r ladowanie_bibliotek}
+pacman::p_load(
+  dplyr,
+  rpart,
+  rpart.plot
+)
+```
+
+# Wstęp
+
+```{r ladowanie_danych, echo = FALSE}
+load('./dane_zaliczenie.RData')
+```
+
+Dane dotyczą płatności/transakcji kartowych z podziałem na transakcje inicjalizujące i rekurencyjne. Baza danych została stworzona jako transakcje rekurencyjne dokonane między 8 lipca 2020 r. a 7 lipca 2021 r., pod warunkiem, że transakcja inicjalizująca miała miejsce nie wcześniej niż 8 stycznia 2020 r. 
+
+Celem niniejszego projektu jest opracowanie modeli predykcyjnych pozwalających na klasyfikację skuteczności transakcji rekurencyjnych oraz prognozowanie ich wartości na podstawie danych o płatnościach kartowych. W zbiorze danym znajdują się następujące zmienne.
+
+| Zmienna | Opis  |
+|:---|:---|
+| `id` | Numer identyfikacyjny konkretnej operacji  |
+| `initialtransaction_id` | Powiązanie z pierwszą transakcją (moment rejestracji karty)  |
+| `createtime` | Moment zarejestrowania płatności w systemie  |
+| `amount` | Kwota przelewu  |
+| `browseragent` | Dane o przeglądarce, z której korzystał płacący  |
+| `description` | Tytuł transakcji |
+| `recurringaction` | Informacja o rodzaju płatności rekurencyjnej  |
+| `screenheight` | Wysokość ekranu urządzenia klienta |
+| `screenwidth` | Szerokość ekranu urządzenia klienta |
+| `acquirerconnectionmethod` | Sposób połączenia z systemem rozliczeniowym. |
+| `expirymonth` | Miesiąc, w którym kończy się ważność karty. |
+| `expiryyear` | Rok ważności karty  |
+| `issuer` | Organizacja wystawiająca kartę  |
+| `type` | Rodzaj karty  |
+| `level` | Standard karty (np. klasyczna, złota)  |
+| `countrycode` | Kod państwa, w którym wydano kartę  |
+| `listtype` | Sektor działania partnera  |
+| `mccname` | Opis branży sprzedawcy  |
+| `payclickedtime` | Data i czas potwierdzenia transakcji przez klienta po uzupełnieniu danych kartowych |
+| `status` | Status płatności |
+
+Jako zmienne zależne wybrano `amount` (regresja) oraz `status` (klasyfikacja).
+
+#	Wstępna eksploracja danych 
+
+## Wymiary zbiorów
+
+```{r wymiary_zbiorow, include = F}
+dim(proba_uczaca)
+dim(proba_testowa)
+```
+
+```{r podsumowanie_zbiorow, include = F}
+summary(proba_uczaca)
+summary(proba_testowa)
+```
+
+## Czyszczenie danych i ich braki
+
+```{r f_znajdz_unikalne, include = F}
+# Funkcja znajdująca unikalne wartości wśród zmiennych w celu zidentyfikowania ewentualnych innych niż NA oznaczeń braków danych (tylko w przypadku danych tekstowych lub faktorów, bo numeryczne wywaliłyby błąd przy wczytywaniu)
+znajdz_unikalne <- function(df) {
+  for (kolumna in names(df)) {
+    if (is.character(df[[kolumna]]) || is.factor(df[[kolumna]])) {
+      
+      unikalne_wartosci <- unique(df[[kolumna]])
+      ile_unikalnych <- length(unikalne_wartosci)
+      
+      # Wypisanie unikalnych wartości tylko, gdy jest ich mało (aby nie zawiesić konsoli przy wypisywaniu ID)
+      if (ile_unikalnych < 100) {
+        cat("------------------------------------------------------\n")
+        cat("Zmienna:", kolumna, "\n")
+        cat("Wartości:\n")
+        print(sort(unikalne_wartosci)) # po posortowaniu dziwne znaki są na początku
+        cat("\n")
+      }
+    }
+  }
+}
+```
+
+## Sprawdzenie poprawności typów zmiennych
+
+```{r typy_zmiennych}
+str(proba_uczaca)
+```
+
+
+
+
+#	Wzbogacanie danych 
+<!-- (utworzenie dodatkowych zmiennych, np. dzień tygodnia na podstawie createtime, przypisanie cech transakcji inicjalizującej do transakcji rekurencyjnej)  -->
+#	Budowanie modeli
+<!-- (m.in. ustalanie optymalnych wartości parametrów, wybór najlepszego modelu)  -->
+#	Prezentacja i interpretacja wyników modelu 
+#	Ocena uzyskanych modeli 
+#	Predykcja modelowanych zmiennych na danych testowych 
+<!-- predykcje należy zapisać w odpowiednich kolumnach obiektu predykcje_testowa  -->
+ 
+# Podsumowanie
