@@ -31,6 +31,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 <!-- <div style="height: 10px;"></div> -->
 
+<!-- cat("Krótki opis:", numerek) -->
+
 ```{r ladowanie_bibliotek}
 pacman::p_load(
   dplyr,
@@ -210,6 +212,8 @@ str(proba_uczaca)
 ```
 
 </details>
+
+<div style="height: 10px;"></div>
 
 Szczególną uwagę poświęcono zmiennym tekstowym `browseragent` oraz `description`. W modelach nieparametrycznych zmienne kategoryczne o bardzo dużej liczbie unikalnych poziomów nie są wskazane.
 
