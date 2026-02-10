@@ -372,7 +372,7 @@ str(proba_uczaca)
 
 ## TYMCZASOWY KODZIK ZEBYM MOGLA WIDZIEC CZY CHARAKTERYSTYKA KARTY I URZĄDZENIA DZIAŁA
 
-```{r tymczasowe_Hani}
+```{r tymczasowe_Hani, include = F}
 # 1. Najpierw tworzymy status sukces/porażka na głównym zbiorze
 proba_uczaca <- proba_uczaca %>%
   mutate(target_status = ifelse(status == "completed successfully", "sukces", "porazka"),
@@ -484,15 +484,100 @@ Przeniesienie cech z momentu rejestracji karty (np. sposób inicjalizacji: PAYME
 
 ```
 
-## Inżynieria cech czasowych (Time-based Features)
+## Inżynieria cech czasowych
 
-Analiza cyklu dobowego i tygodniowego: Ekstrakcja godziny, dnia tygodnia oraz flagi weekendu ze zmiennej createtime.
+W celu uwzględnienia cykliczności zachowań płatniczych oraz specyfiki systemów bankowych, dokonano dekompozycji zmiennej czasowej `createtime`. Na jej podstawie wyznaczono godzinę oraz dzień tygodnia transakcji, zachowując ich chronologiczny porządek. Dodatkowo wprowadzono zmienne binarne identyfikujące transakcje weekendowe oraz te realizowane w godzinach nocnych (00:00–05:00), które są szczególnie narażone na niepowodzenie ze względu na potencjalne przerwy techniczne po stronie wystawców kart.
 
-Identyfikacja okresów krytycznych: Stworzenie zmiennej "Pora nocna" (00:00 – 05:00) w celu uchwycenia przerw technicznych w systemach bankowych.
+```{r cechy_czasowe}
+# Funkcja do generowania cech czasowych
+dodaj_cechy_czasowe <- function(df) {
+  df %>%
+    mutate(
+      godzina = as.numeric(format(createtime, "%H")),
+      
+      # Zamiana 1-7 na słowne etykiety, ale z zachowaniem kolejności!
+      dzien_tygodnia = factor(format(createtime, "%u"),
+                              levels = c("1", "2", "3", "4", "5", "6", "7"),
+                              labels = c("Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz")),
+      
+      # Flaga weekendu (bazujemy na nazwach, które przed chwilą stworzyliśmy)
+      czesc_tygodnia = ifelse(dzien_tygodnia %in% c("Sob", "Ndz"), "Weekend", "Tydzień"),
+      czesc_tygodnia = as.factor(czesc_tygodnia),
+      
+      pora_dnia = ifelse(godzina <= 5, "Noc", "Dzień"),
+      pora_dnia = as.factor(pora_dnia)
+    )
+}
 
-```{r}
+# Zastosowanie funkcji do obu zbiorów
+uczaca_rekurencyjne <- dodaj_cechy_czasowe(uczaca_rekurencyjne)
+testowa_rekurencyjne <- dodaj_cechy_czasowe(testowa_rekurencyjne)
 
+# Weryfikacja poprawności (tabela krzyżowa godziny i flagi nocy)
+# table(Godzina = uczaca_rekurencyjne$godzina, Pora = uczaca_rekurencyjne$pora_dnia)
 ```
+
+
+```{r wizualizacja_czasowa, echo = F, fig.height= 3.5, fig.align='center'}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(patchwork)
+
+moje_kolory <- c(
+  "#8E24AA",
+  "#D81B60",
+  "#BA68C8",
+  "#F06292",
+  "#4A148C", 
+  "#F8BBD0",
+  "#CE93D8"
+)
+
+# Funkcja rysująca wykresy kołowe
+rysuj_kolo_fiolet <- function(dane_uczace, dane_testowe, nazwa_zmiennej, tytul) {
+  
+  # 1. Przygotowanie danych
+  dane_plot <- bind_rows(
+    dane_uczace %>% select(all_of(nazwa_zmiennej)) %>% mutate(Zbior = "Uczący"),
+    dane_testowe %>% select(all_of(nazwa_zmiennej)) %>% mutate(Zbior = "Testowy")
+  ) %>%
+    rename(Kategoria = 1) %>% 
+    count(Zbior, Kategoria) %>%
+    group_by(Zbior) %>%
+    mutate(Procent = n / sum(n)) %>%
+    ungroup()
+  
+  # 2. Rysowanie
+  ggplot(dane_plot, aes(x = "", y = Procent, fill = Kategoria)) +
+    geom_bar(stat = "identity", width = 1, color = "white") +
+    coord_polar("y", start = 0) +
+    facet_wrap(~Zbior) +
+    
+    geom_text(aes(label = percent(Procent, accuracy = 0.1)), 
+              position = position_stack(vjust = 0.5), 
+              size = 3, color = "white", fontface = "bold") +
+    
+    scale_fill_manual(values = moje_kolory) +
+    
+    theme_void() + 
+    labs(title = tytul, fill = "Legenda") +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", margin = margin(b = 10)),
+      legend.position = "bottom"
+    )
+}
+
+# --- GENEROWANIE WYKRESÓW ---
+
+wykres_pora <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "pora_dnia", "Pora Dnia")
+wykres_weekend <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "czesc_tygodnia", "Weekend vs Tydzień")
+wykres_pora + wykres_weekend
+
+rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "dzien_tygodnia", "Dni tygodnia")
+```
+
 
 ## Charakterystyka karty
 
