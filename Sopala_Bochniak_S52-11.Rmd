@@ -41,46 +41,44 @@ pacman::p_load(
 )
 ```
 
-# Wstęp
+# Zbiór danych
 
 ```{r ladowanie_danych, echo = FALSE}
 load('./dane_zaliczenie.RData')
 ```
 
-Dane dotyczą płatności/transakcji kartowych z podziałem na transakcje inicjalizujące i rekurencyjne. Baza danych została stworzona jako transakcje rekurencyjne dokonane między 8 lipca 2020 r. a 7 lipca 2021 r., pod warunkiem, że transakcja inicjalizująca miała miejsce nie wcześniej niż 8 stycznia 2020 r. 
+Zbiór zawiera dane dotyczące płatności/transakcji kartowych z podziałem na transakcje inicjalizujące i rekurencyjne. Baza została stworzona jako transakcje rekurencyjne dokonane między 8 lipca 2020 r. a 7 lipca 2021 r., pod warunkiem, że transakcja inicjalizująca miała miejsce nie wcześniej niż 8 stycznia 2020 r. W zbiorze danych znajdują się następujące zmienne.
 
-Celem niniejszego projektu jest opracowanie modeli predykcyjnych pozwalających na klasyfikację skuteczności transakcji rekurencyjnych oraz prognozowanie ich wartości na podstawie danych o płatnościach kartowych. W zbiorze danym znajdują się następujące zmienne.
-
-| Zmienna | Opis  |
+| Zmienna | Opis |
 |:---|:---|
-| `id` | Numer identyfikacyjny konkretnej operacji  |
-| `initialtransaction_id` | Powiązanie z pierwszą transakcją (moment rejestracji karty)  |
-| `createtime` | Moment zarejestrowania płatności w systemie  |
+| `id` | Numer identyfikacyjny konkretnej operacji |
+| `initialtransaction_id` | Powiązanie z pierwszą transakcją (moment rejestracji karty) |
+| `createtime` | Moment zarejestrowania płatności w systemie |
 | `amount` | Kwota przelewu  |
-| `browseragent` | Dane o przeglądarce, z której korzystał płacący  |
+| `browseragent` | Dane o przeglądarce, z której korzystał płacący |
 | `description` | Tytuł transakcji |
-| `recurringaction` | Informacja o rodzaju płatności rekurencyjnej  |
+| `recurringaction` | Informacja o rodzaju płatności rekurencyjnej |
 | `screenheight` | Wysokość ekranu urządzenia klienta |
 | `screenwidth` | Szerokość ekranu urządzenia klienta |
 | `acquirerconnectionmethod` | Sposób połączenia z systemem rozliczeniowym. |
 | `expirymonth` | Miesiąc, w którym kończy się ważność karty. |
-| `expiryyear` | Rok ważności karty  |
-| `issuer` | Organizacja wystawiająca kartę  |
-| `type` | Rodzaj karty  |
-| `level` | Standard karty (np. klasyczna, złota)  |
-| `countrycode` | Kod państwa, w którym wydano kartę  |
-| `listtype` | Sektor działania partnera  |
-| `mccname` | Opis branży sprzedawcy  |
+| `expiryyear` | Rok ważności karty |
+| `issuer` | Organizacja wystawiająca kartę |
+| `type` | Rodzaj karty |
+| `level` | Standard karty (np. klasyczna, złota) |
+| `countrycode` | Kod państwa, w którym wydano kartę |
+| `listtype` | Sektor działania partnera |
+| `mccname` | Opis branży sprzedawcy |
 | `payclickedtime` | Data i czas potwierdzenia transakcji przez klienta po uzupełnieniu danych kartowych |
 | `status` | Status płatności |
 
-Jako zmienne zależne wybrano `amount` (regresja) oraz `status` (klasyfikacja).
+Celem niniejszego projektu jest opracowanie modeli predykcyjnych pozwalających na klasyfikację skuteczności transakcji rekurencyjnych oraz prognozowanie ich wartości na podstawie danych o płatnościach kartowych. Jako zmienne zależne wybrano `amount` (regresja) oraz `status` (klasyfikacja).
 
 #	Wstępna eksploracja danych 
 
 ## Wymiary zbiorów danych
 
-```{r wymiary_zbiorow}
+```{r wymiary_zbiorow, echo = F}
 cat("Wymiary zbioru uczącego:", dim(proba_uczaca))
 cat("Wymiary zbioru testowego:", dim(proba_testowa))
 ```
