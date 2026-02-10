@@ -159,7 +159,7 @@ znajdz_unikalne(proba_testowa)
 
 Wstępna analiza jakości danych ujawniła niespójne kodowanie brakujących wartości. Oprócz standardowych wartości `NA`, zidentyfikowano również puste ciągi znaków oraz wartości tekstowe NULL. Wszystkie te wartości zostały poddane rekodowaniu do standardowej wartości NA przed rozpoczęciem modelowania.
 
-```{r f_wyczysc_braki}
+```{r f_wyczysc_braki, include = F}
 # Funkcja czyszcząca braki - ujednolica je do NA
 wyczysc_braki <- function(df) {
   
@@ -330,8 +330,23 @@ str(proba_uczaca)
 
 Klasyfikacja: Przekształcenie zmiennej status na postać binarną (Sukces/Porażka) zgodnie z wymogami projektu (ustawienie "Porażki" jako poziomu pozytywnego do F-miary).
 
-```{r}
+```{r f_transformuj_status, include = F}
+# Funkcja transformująca zmienną celu "status"
+transformuj_status <- function(df) {
+  df %>%
+    mutate(
+      # tylko "completed successfully" to sukces
+      status_bin = ifelse(status == "completed successfully", "sukces", "porażka"),
+      
+      # konwersja na factor z odpowiednią kolejnością poziomów
+      status_bin = factor(status_bin, levels = c("porażka", "sukces"))
+    )
+}
+```
 
+
+```{r transformacja_status}
+proba_uczaca <- transformuj_status(proba_uczaca)
 ```
 
 Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna).
