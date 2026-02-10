@@ -200,14 +200,73 @@ sort(unique(proba_uczaca$description))
 
 </details>
 
-## Sprawdzenie poprawności typów zmiennych
+## Weryfikacja i korekta typów zmiennych
+
+Po wstępnym oczyszczeniu zbioru z niestandardowych braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
+
+<details>
+  <summary> Struktura zbioru danych </summary>
 
 ```{r typy_zmiennych}
 str(proba_uczaca)
 ```
 
+</details>
+
+Szczególną uwagę poświęcono zmiennym tekstowym `browseragent` oraz `description`. W modelach nieparametrycznych zmienne kategoryczne o bardzo dużej liczbie unikalnych poziomów nie są wskazane.
+
+Sprawdzono liczbę unikalnych wariantów dla obu podejrzanych zmiennych:
+
+```{r ile_unikalnych_podejrzane_zmienne}
+length(unique(proba_uczaca$browseragent))
+length(unique(proba_uczaca$description))
+```
+
+Analiza wykazała istotną różnicę:
+
+* Zmienna `browseragent` posiada ponad 2000 unikalnych wartości. Ze względu na tak wysoki poziom zaszumienia, zmienna ta zostanie pominięta w dalszej konwersji na typ kategoryczny.
+
+* Zmienna `description`, wbrew początkowym założeniom, przyjmuje jedynie kilkanaście powtarzalnych wartości. Jest to informacja potencjalnie użyteczna dla modelu, dlatego zostanie ona uwzględniona w dalszej analizie jako zmienna kategoryczna (`factor`).
 
 
+```{r f_napraw_strukture, include = F}
+# Funkcja naprawia strukturę danych - konwersja na odpowiednie typy zmiennych
+napraw_strukture <- function(df) {
+  df %>%
+    # zmienne numeryczne
+    mutate(
+      screenheight = as.numeric(screenheight),
+      screenwidth  = as.numeric(screenwidth)
+    ) %>%
+    # zmienne kategoryczne
+    mutate(across(any_of(c(
+      "description",
+      "recurringaction", 
+      "acquirerconnectionmethod", 
+      "issuer", 
+      "type", 
+      "level", 
+      "countrycode", 
+      "listtype", 
+      "mccname", 
+      "status"
+    )), as.factor))
+}
+```
+
+```{r naprawianie_struktury_zbiorow}
+proba_uczaca <- napraw_strukture(proba_uczaca)
+proba_testowa  <- napraw_strukture(proba_testowa)
+```
+
+<details>
+  <summary> Struktura zbioru danych po naprawie </summary>
+
+```{r typy_zmiennych_po_naprawie}
+str(proba_uczaca)
+```
+
+</details>
 
 #	Wzbogacanie danych 
 <!-- (utworzenie dodatkowych zmiennych, np. dzień tygodnia na podstawie createtime, przypisanie cech transakcji inicjalizującej do transakcji rekurencyjnej)  -->
