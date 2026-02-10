@@ -327,8 +327,6 @@ Musisz przypisać cechy transakcji inicjalizującej (INIT...) do transakcji reku
 Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka
 
 
-
-
 #	Budowanie modeli
 <!-- (m.in. ustalanie optymalnych wartości parametrów, wybór najlepszego modelu)  -->
 #	Prezentacja i interpretacja wyników modelu 
