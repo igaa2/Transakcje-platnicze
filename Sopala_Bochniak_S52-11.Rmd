@@ -26,7 +26,6 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 <!-- <details> -->
 <!--   <summary> Templatka zawijaczy kodu </summary> -->
 
-
 <!-- </details> -->
 
 
@@ -175,7 +174,6 @@ wyczysc_braki <- function(df) {
 }
 ```
 
-
 ```{r czyszczenie_zbiorow}
 proba_uczaca <- wyczysc_braki(proba_uczaca)
 proba_testowa <- wyczysc_braki(proba_testowa)
@@ -213,6 +211,21 @@ str(proba_uczaca)
 
 #	Wzbogacanie danych 
 <!-- (utworzenie dodatkowych zmiennych, np. dzień tygodnia na podstawie createtime, przypisanie cech transakcji inicjalizującej do transakcji rekurencyjnej)  -->
+
+## Łączenie transakcji
+
+Musisz przypisać cechy transakcji inicjalizującej (INIT...) do transakcji rekurencyjnej (AUTO/MANUAL) za pomocą initialtransaction_id. To klucz do sukcesu – np. czy to, że karta została zarejestrowana z "REFUND", wpływa na późniejszą skuteczność płatności?
+
+## Inżynieria cech (Feature Engineering)
+
+- Z createtime wyciągnij: godzinę (pory dnia), dzień tygodnia i czy jest to weekend.
+
+- Z expiryyear i expirymonth oblicz "czas do wygaśnięcia karty" w momencie transakcji.
+
+## Zmienna celu dla klasyfikacji
+
+Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana.
+
 #	Budowanie modeli
 <!-- (m.in. ustalanie optymalnych wartości parametrów, wybór najlepszego modelu)  -->
 #	Prezentacja i interpretacja wyników modelu 
