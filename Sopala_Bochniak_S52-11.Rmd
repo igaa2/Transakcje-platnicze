@@ -259,7 +259,7 @@ Po wstępnym oczyszczeniu zbioru z niestandardowych braków danych, przeprowadzo
 ```{r typy_zmiennych}
 str(proba_uczaca)
 ```
-
+  
 </details>
 
 ::: {style="height: 10px;"}
