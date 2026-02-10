@@ -250,6 +250,8 @@ sort(unique(proba_uczaca$description))
 
 ## Weryfikacja i korekta typów zmiennych
 
+**XXX tu wywalic browseragent**
+
 Po wstępnym oczyszczeniu zbioru z niestandardowych braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
 
 <details>
@@ -416,11 +418,7 @@ transformuj_status <- function(df) {
 uczaca_rekurencyjne <- transformuj_status(uczaca_rekurencyjne)
 ```
 
-Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna). NIE JESTEM PEWNA CZY ROBIĆ BO PODOBNO DRZEWA NIE WYMAGAJĄ
-
-```{r}
-
-```
+**XXX Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna). NIE JESTEM PEWNA CZY ROBIĆ BO PODOBNO DRZEWA NIE WYMAGAJĄ **
 
 
 ## Inżynieria cech czasowych
