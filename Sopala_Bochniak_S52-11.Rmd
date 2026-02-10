@@ -324,91 +324,6 @@ str(proba_uczaca)
 
 # Wzbogacanie danych
 
-<!-- (utworzenie dodatkowych zmiennych, np. dzień tygodnia na podstawie createtime, przypisanie cech transakcji inicjalizującej do transakcji rekurencyjnej)  -->
-
-<!-- Pomysły inspirowane: -->
-
-<!-- - zamiana screenheight oraz screenwidth na aspectratio tudzież Popularność urządzenia (screenwidth / screenheight): Możesz stworzyć zmienną "typ urządzenia" (np. Mobile vs Desktop). Transakcje z urządzeń mobilnych mogą mieć inną charakterystykę kwot. -->
-
-<!-- - Zagraniczna karta: Porównanie countrycode z kodem kraju, w którym działa partner (jeśli jest dostępny) lub po prostu flaga, czy karta jest z Polski (PL vs reszta świata). -->
-
-<!-- - Wiek karty w systemie: Różnica czasu między createtime transakcji rekurencyjnej a createtime transakcji inicjalizującej. Nowe subskrypcje mogą zachowywać się inaczej niż te trwające od roku. -->
-
-<!-- - Czy karta wygasa w tym roku? Zmienna binarna (0/1). Karty bliskie daty ważności często są przyczyną błędów ("expired card"). -->
-
-<!-- - Liczba poprzednich transakcji: Ile transakcji rekurencyjnych wykonano już dla tego initialtransaction_id. -->
-
-<!-- - Skuteczność historyczna: Procent udanych transakcji dla danej karty (identyfikowanej przez initialtransaction_id) do momentu obecnej transakcji. -->
-
-<!-- - Średnia kwota transakcji: Czy obecne amount odbiega od średniej dla tej konkretnej karty? -->
-
-<!-- - Średnia skuteczność wystawcy (issuer): Niektóre banki mogą mieć bardziej rygorystyczne filtry antyfraudowe, co zwiększa liczbę odrzuceń. -->
-
-<!-- - Ryzykowna godzina: Zamiast samej godziny, zmienna binarna "czy noc" (np. 00:00 - 05:00). Wiele systemów bankowych ma wtedy przerwy techniczne, co generuje błędy płatności. -->
-
-<!-- - Czy kwota jest całkowita? (np. amount %% 1 == 0). W płatnościach automatycznych kwoty z końcówkami (np. 19.99) są typowe dla subskrypcji, a całkowite (np. 100) dla doładowań. -->
-
-<!-- - Logarytm kwoty: Do modelu regresji warto dodać log(amount), ponieważ rozkład kwot w transakcjach zwykle jest silnie prawoskośny (masz dużo małych płatności i kilka bardzo dużych, co widać w Twoim summary: Median 30, Max 3450). -->
-
-<!-- Do raportu i modelu w pierwszej kolejności wrzuć (inne mogą być ryzykowne): -->
-
-<!-- - Wiek karty (różnica createtime rekurencyjnej i inicjalizującej). -->
-
-<!-- - Pora dnia / Noc (z createtime). -->
-
-<!-- - Czas do wygaśnięcia (różnica między expiryyear/month a createtime). -->
-
-<!-- - Flaga "Krajowa/Zagraniczna" (countrycode == 'PL'). -->
-
-<!-- - Logarytm kwoty (tylko do regresji). -->
-
-<!-- ## Łączenie transakcji  -->
-
-<!-- Musisz przypisać cechy transakcji inicjalizującej (INIT...) do transakcji rekurencyjnej (AUTO/MANUAL) za pomocą initialtransaction_id. To klucz do sukcesu – np. czy to, że karta została zarejestrowana z "REFUND", wpływa na późniejszą skuteczność płatności? -->
-
-<!-- ## Inżynieria cech (Feature Engineering) -->
-
-<!-- - Z createtime wyciągnij: godzinę (pory dnia), dzień tygodnia i czy jest to weekend. -->
-
-<!-- - Z expiryyear i expirymonth oblicz "czas do wygaśnięcia karty" w momencie transakcji. -->
-
-<!-- ## Zmienna celu dla klasyfikacji -->
-
-<!-- Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka -->
-
-<!-- ## TYMCZASOWY KODZIK ZEBYM MOGLA WIDZIEC CZY CHARAKTERYSTYKA KARTY I URZĄDZENIA DZIAŁA -->
-
-<!-- ```{r tymczasowe_Hani, include = F} -->
-<!-- # 1. Najpierw tworzymy status sukces/porażka na głównym zbiorze -->
-<!-- proba_uczaca <- proba_uczaca %>% -->
-<!--   mutate(target_status = ifelse(status == "completed successfully", "sukces", "porazka"), -->
-<!--          target_status = as.factor(target_status)) -->
-
-<!-- # 1. Wyodrębniamy same transakcje inicjalizujące, żeby wyciągnąć z nich datę startu -->
-<!-- inicjalizujace_info <- proba_uczaca %>% -->
-<!--   filter(grepl("INIT", recurringaction)) %>% -->
-<!--   select(id, init_time = createtime) -->
-
-<!-- # 2. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (uczacy) -->
-<!-- uczaca_rekurencyjne <- proba_uczaca %>% -->
-<!--   # Wybieramy tylko AUTO i MANUAL -->
-<!--   filter(recurringaction %in% c("AUTO", "MANUAL")) %>% -->
-<!--   # Doklejamy datę inicjalizacji po ID -->
-<!--   left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id")) -->
-
-<!-- # 3. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (testowy) -->
-<!-- testowa_rekurencyjne <- proba_testowa %>% -->
-<!--   filter(recurringaction %in% c("AUTO", "MANUAL")) %>% -->
-<!--   # Tu też doklejamy info o inicjalizacji (korzystając z info z bazy uczącej) -->
-<!--   left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id")) -->
-
-<!-- # 4. Sprawdzenie, czy mamy dane (powinno być mniej wierszy niż w pełnym zbiorze) -->
-<!-- nrow(uczaca_rekurencyjne) -->
-
-
-<!-- ``` -->
-
-
 ## Segmentacja transakcji rekurencyjnych
 
 Zgodnie z definicją biznesową, transakcje inicjalizujące (`INIT`) są zawsze udane i służą jedynie do rejestracji metody płatności. Włączenie ich do zbioru uczącego sztucznie zawyżyłoby skuteczność modelu (trywialna predykcja). Celem projektu jest predykcja powodzenia obciążeń **rekurencyjnych** (`AUTO` i `MANUAL`), które niosą ryzyko odrzucenia.
@@ -442,8 +357,6 @@ wybierz_rekurencyjne <- function(df) {
 }
 ```
 
-
-<<<<<<< HEAD
 ```{r tranzakcje_inicjalizujace}
 uczaca_init <- proba_uczaca %>%
   filter(grepl("INIT", recurringaction)) %>%
@@ -453,7 +366,6 @@ uczaca_init <- proba_uczaca %>%
   )
 ```
 
-<details>
 
 <details>
 
@@ -464,7 +376,7 @@ uczaca_rekurencyjne <- proba_uczaca %>%
   filter(recurringaction %in% c("AUTO", "MANUAL"))
 ```
 
-<details>
+</details>
 
 ```{r}
 uczaca_init <- wybierz_inicjalizujace(proba_uczaca)
@@ -564,8 +476,6 @@ testowa_rekurencyjne <- proba_testowa %>%
 
 # 4. Sprawdzenie, czy mamy dane (powinno być mniej wierszy niż w pełnym zbiorze)
 nrow(uczaca_rekurencyjne)
-
-
 ```
 
 
@@ -573,39 +483,37 @@ nrow(uczaca_rekurencyjne)
 
 W celu uwzględnienia cykliczności zachowań płatniczych oraz specyfiki systemów bankowych, dokonano dekompozycji zmiennej czasowej `createtime`. Na jej podstawie wyznaczono godzinę oraz dzień tygodnia transakcji, zachowując ich chronologiczny porządek. Dodatkowo wprowadzono zmienne binarne identyfikujące transakcje weekendowe oraz te realizowane w godzinach nocnych (00:00–05:00), które są szczególnie narażone na niepowodzenie ze względu na potencjalne przerwy techniczne po stronie wystawców kart.
 
-```{r cechy_czasowe}
+
+```{r cechy_czasowe, echo= F}
 # Funkcja do generowania cech czasowych
 dodaj_cechy_czasowe <- function(df) {
   df %>%
     mutate(
       godzina = as.numeric(format(createtime, "%H")),
       
-      # Zamiana 1-7 na słowne etykiety, ale z zachowaniem kolejności!
+      # Zamiana 1-7 na słowne etykiety
       dzien_tygodnia = factor(format(createtime, "%u"),
                               levels = c("1", "2", "3", "4", "5", "6", "7"),
                               labels = c("Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz")),
       
-      # Flaga weekendu (bazujemy na nazwach, które przed chwilą stworzyliśmy)
+      # Flaga weekendu
       czesc_tygodnia = ifelse(dzien_tygodnia %in% c("Sob", "Ndz"), "Weekend", "Tydzień"),
       czesc_tygodnia = as.factor(czesc_tygodnia),
       
+      # Prosta definicja pory dnia (Noc = 00:00 - 05:59)
       pora_dnia = ifelse(godzina <= 5, "Noc", "Dzień"),
       pora_dnia = as.factor(pora_dnia)
     )
 }
 
-# Zastosowanie funkcji do obu zbiorów
 uczaca_rekurencyjne_polaczone <- dodaj_cechy_czasowe(uczaca_rekurencyjne_polaczone)
 testowa_rekurencyjne <- dodaj_cechy_czasowe(testowa_rekurencyjne)
 
-# Weryfikacja poprawności (tabela krzyżowa godziny i flagi nocy)
-# table(Godzina = uczaca_rekurencyjne$godzina, Pora = uczaca_rekurencyjne$pora_dnia)
+# Sprawdzenie, czy kolumny się pojawiły (powinno wypisać nazwy)
+colnames(uczaca_rekurencyjne_polaczone)
 ```
 
-
 ```{r wizualizacja_czasowa, echo = F, fig.height= 3.5, fig.align='center'}
-
-
 moje_kolory <- c(
   "#8E24AA",
   "#D81B60",
@@ -616,10 +524,8 @@ moje_kolory <- c(
   "#CE93D8"
 )
 
-# Funkcja rysująca wykresy kołowe
 rysuj_kolo_fiolet <- function(dane_uczace, dane_testowe, nazwa_zmiennej, tytul) {
-  
-  # 1. Przygotowanie danych
+
   dane_plot <- bind_rows(
     dane_uczace %>% select(all_of(nazwa_zmiennej)) %>% mutate(Zbior = "Uczący"),
     dane_testowe %>% select(all_of(nazwa_zmiennej)) %>% mutate(Zbior = "Testowy")
@@ -630,7 +536,6 @@ rysuj_kolo_fiolet <- function(dane_uczace, dane_testowe, nazwa_zmiennej, tytul) 
     mutate(Procent = n / sum(n)) %>%
     ungroup()
   
-  # 2. Rysowanie
   ggplot(dane_plot, aes(x = "", y = Procent, fill = Kategoria)) +
     geom_bar(stat = "identity", width = 1, color = "white") +
     coord_polar("y", start = 0) +
@@ -652,13 +557,13 @@ rysuj_kolo_fiolet <- function(dane_uczace, dane_testowe, nazwa_zmiennej, tytul) 
 
 # --- GENEROWANIE WYKRESÓW ---
 
-wykres_pora <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "pora_dnia", "Pora Dnia")
-wykres_weekend <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "czesc_tygodnia", "Weekend vs Tydzień")
+wykres_pora <- rysuj_kolo_fiolet(uczaca_rekurencyjne_polaczone, testowa_rekurencyjne, "pora_dnia", "Pora Dnia")
+wykres_weekend <- rysuj_kolo_fiolet(uczaca_rekurencyjne_polaczone, testowa_rekurencyjne, "czesc_tygodnia", "Weekend vs Tydzień")
+
 wykres_pora + wykres_weekend
 
-rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "dzien_tygodnia", "Dni tygodnia")
+rysuj_kolo_fiolet(uczaca_rekurencyjne_polaczone, testowa_rekurencyjne, "dzien_tygodnia", "Dni tygodnia")
 ```
-
 
 ## Charakterystyka karty
 
