@@ -9,6 +9,7 @@ output:
     code_folding: hide
 ---
 
+```{=html}
 <style>
 body {
     text-align: justify;
@@ -18,16 +19,17 @@ body {
     font-size: 16px;
 }
 </style>
+```
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 <!-- <details> -->
+
 <!--   <summary> Templatka zawijaczy kodu </summary> -->
 
 <!-- </details> -->
-
 
 <!-- <div style="height: 10px;"></div> -->
 
@@ -50,11 +52,11 @@ load('./dane_zaliczenie.RData')
 Zbiór zawiera dane dotyczące płatności/transakcji kartowych z podziałem na transakcje inicjalizujące i rekurencyjne. Baza została stworzona jako transakcje rekurencyjne dokonane między 8 lipca 2020 r. a 7 lipca 2021 r., pod warunkiem, że transakcja inicjalizująca miała miejsce nie wcześniej niż 8 stycznia 2020 r. W zbiorze danych znajdują się następujące zmienne.
 
 | Zmienna | Opis |
-|:---|:---|
+|:-----------------------------------|:-----------------------------------|
 | `id` | Numer identyfikacyjny konkretnej operacji |
 | `initialtransaction_id` | Powiązanie z pierwszą transakcją (moment rejestracji karty) |
 | `createtime` | Moment zarejestrowania płatności w systemie |
-| `amount` | Kwota przelewu  |
+| `amount` | Kwota przelewu |
 | `browseragent` | Dane o przeglądarce, z której korzystał płacący |
 | `description` | Tytuł transakcji |
 | `recurringaction` | Informacja o rodzaju płatności rekurencyjnej |
@@ -74,7 +76,7 @@ Zbiór zawiera dane dotyczące płatności/transakcji kartowych z podziałem na 
 
 Celem niniejszego projektu jest opracowanie modeli predykcyjnych pozwalających na klasyfikację skuteczności transakcji rekurencyjnych oraz prognozowanie ich wartości na podstawie danych o płatnościach kartowych. Jako zmienne zależne wybrano `amount` (regresja) oraz `status` (klasyfikacja).
 
-#	Wstępna eksploracja danych 
+# Wstępna eksploracja danych
 
 ## Wymiary zbiorów danych
 
@@ -86,7 +88,8 @@ cat("Wymiary zbioru testowego:", dim(proba_testowa))
 Zbiór uczący liczy 29 412 obserwacji, natomiast zbiór testowy obejmuje 15 185 rekordów.
 
 <details>
-  <summary> Podsumowanie zmiennych w zbiorze uczącym </summary>
+
+<summary>Podsumowanie zmiennych w zbiorze uczącym</summary>
 
 ```{r podsumowanie_zbioru_uczacego}
 summary(proba_uczaca)
@@ -94,10 +97,12 @@ summary(proba_uczaca)
 
 </details>
 
-<div style="height: 10px;"></div>
+::: {style="height: 10px;"}
+:::
 
 <details>
-  <summary> Podsumowanie zmiennych w zbiorze testowym </summary>
+
+<summary>Podsumowanie zmiennych w zbiorze testowym</summary>
 
 ```{r podsumowanie_zbioru_testowego}
 summary(proba_testowa)
@@ -105,11 +110,12 @@ summary(proba_testowa)
 
 </details>
 
-<div style="height: 10px;"></div>
+::: {style="height: 10px;"}
+:::
 
 W obu zbiorach występuje po ok. 20 zmiennych opisujących charakterystykę transakcji, przy czym zbiór testowy jest pozbawiony zmiennej celu `status`. Wstępna analiza wskazuje na liczne braki danych w kolumnach `initialtransaction_id` oraz `payclickedtime`.
 
-## Czyszczenie danych i ich braki
+## Czyszczenie danych
 
 W celu identyfikacji niestandardowych oznaczeń braków danych przeprowadzono analizę unikalnych wartości zmiennych kategorycznych.
 
@@ -136,7 +142,8 @@ znajdz_unikalne <- function(df) {
 ```
 
 <details>
-  <summary> Unikalne wartości w próbie uczącej </summary>
+
+<summary>Unikalne wartości w próbie uczącej</summary>
 
 ```{r znalezienie_unikalnych_uczaca}
 znajdz_unikalne(proba_uczaca)
@@ -144,10 +151,12 @@ znajdz_unikalne(proba_uczaca)
 
 </details>
 
-<div style="height: 10px;"></div>
+::: {style="height: 10px;"}
+:::
 
 <details>
-  <summary> Unikalne wartości w próbie testowej </summary>
+
+<summary>Unikalne wartości w próbie testowej</summary>
 
 ```{r znalezienie_unikalnych_testowa}
 znajdz_unikalne(proba_testowa)
@@ -155,7 +164,8 @@ znajdz_unikalne(proba_testowa)
 
 </details>
 
-<div style="height: 10px;"></div>
+::: {style="height: 10px;"}
+:::
 
 Wstępna analiza jakości danych ujawniła niespójne kodowanie brakujących wartości. Oprócz standardowych wartości `NA`, zidentyfikowano również puste ciągi znaków oraz wartości tekstowe NULL. Wszystkie te wartości zostały poddane rekodowaniu do standardowej wartości NA przed rozpoczęciem modelowania.
 
@@ -179,12 +189,44 @@ proba_uczaca <- wyczysc_braki(proba_uczaca)
 proba_testowa <- wyczysc_braki(proba_testowa)
 ```
 
+### Obsługa braków danych
+
+Niektóre zmienne mają zbyt dużą liczbę braków danych. Zbyt duża liczba brakujących obserwacji może prowadzić do niestabilności modeli lub błędnych wniosków.
+
+W celu identyfikacji takich zmiennych przeprowadzono analizę procentowego udziału wartości NA dla każdego atrybutu.
+
+```{r braki_danych}
+# 1. Sprawdzenie procentu braków danych w każdej kolumnie
+procent_brakow <- sapply(proba_uczaca, function(x) sum(is.na(x)) / length(x) * 100)
+
+# Wyświetlenie zmiennych, które mają więcej niż 50% braków
+print(procent_brakow[procent_brakow > 50])
+
+# 2. Usuwanie zmiennych o niskiej jakości
+# Zmienne screenwidth, screenheight oraz payclickedtime (często puste przy automacie)
+# są usuwane z obu zbiorów.
+zmienne_do_usuniecia <- names(procent_brakow[procent_brakow > 50])
+
+proba_uczaca <- proba_uczaca %>% 
+  select(-all_of(zmienne_do_usuniecia))
+
+proba_testowa <- proba_testowa %>% 
+  select(-any_of(zmienne_do_usuniecia))
+```
+
+W celu zapewnienia wysokiej jakości danych wejściowych, zastosowano procedurę automatycznej selekcji zmiennych. Obliczono odsetek brakujących wartości dla każdego atrybutu w zbiorze uczącym. Zmienne, w których braki danych przekraczały próg 50% `r paste(paste0("\x60", zmienne_do_usuniecia, "\x60"), collapse = ", ")`, zostały trwale usunięte z obu zbiorów (uczącego i testowego). Pozwoliło to uniknięcie błędów w modelach nieobsługujących dużej liczby braków.
+
+Zrezygnowano z imputacji braków danych, aby uniknąć zniekształcenia pierwotnych rozkładów zmiennych.
+
+### Eliminacja nadmiarowości
+
 W trakcie eksploracji braków danych zidentyfikowano niespójności w zapisie tytułów płatności (zmienna `description`). Te same kategorie były zapisywane w sposób nadmiarowy, różniąc się jedynie wielkością liter (np. "PLAY - faktura" vs "PLAY - FAKTURA" oraz "RedBull Mobile - faktura" vs "RedBull Mobile - FAKTURA").
 
 W celu wyeliminowania pozornej zmienności przeprowadzono proces ujednolicenia danych. Wszystkie znaki zostały skonwertowane na wielkie litery. Usunięto spacje brzegowe ze względów estetycznych.
 
 <details>
-  <summary> Efekt agregacji zmiennej `description` </summary>
+
+<summary>Efekt agregacji zmiennej `description`</summary>
 
 ```{r zmienna_description}
 # Ujednolicenie wielkości liter i usuwanie białych znaków w opisie
@@ -205,7 +247,8 @@ sort(unique(proba_uczaca$description))
 Po wstępnym oczyszczeniu zbioru z niestandardowych braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
 
 <details>
-  <summary> Struktura zbioru danych </summary>
+
+<summary>Struktura zbioru danych</summary>
 
 ```{r typy_zmiennych}
 str(proba_uczaca)
@@ -213,7 +256,8 @@ str(proba_uczaca)
 
 </details>
 
-<div style="height: 10px;"></div>
+::: {style="height: 10px;"}
+:::
 
 Szczególną uwagę poświęcono zmiennym tekstowym `browseragent` oraz `description`. W modelach nieparametrycznych zmienne kategoryczne o bardzo dużej liczbie unikalnych poziomów nie są wskazane.
 
@@ -226,20 +270,19 @@ cat("Liczba wariantów w zmiennej description:", length(unique(proba_uczaca$desc
 
 Analiza wykazała istotną różnicę:
 
-* Zmienna `browseragent` posiada ponad 2000 unikalnych wartości. Ze względu na tak wysoki poziom zaszumienia, zmienna ta zostanie pominięta w dalszej konwersji na typ kategoryczny.
+-   Zmienna `browseragent` posiada ponad 2000 unikalnych wartości. Ze względu na tak wysoki poziom zaszumienia, zmienna ta zostanie pominięta w dalszej konwersji na typ kategoryczny.
 
-* Zmienna `description`, wbrew początkowym założeniom, przyjmuje jedynie kilkanaście powtarzalnych wartości. Jest to informacja potencjalnie użyteczna dla modelu, dlatego zostanie ona uwzględniona w dalszej analizie jako zmienna kategoryczna (`factor`).
-
+-   Zmienna `description`, wbrew początkowym założeniom, przyjmuje jedynie kilkanaście powtarzalnych wartości. Jest to informacja potencjalnie użyteczna dla modelu, dlatego zostanie ona uwzględniona w dalszej analizie jako zmienna kategoryczna (`factor`).
 
 ```{r f_napraw_strukture, include = F}
 # Funkcja naprawia strukturę danych - konwersja na odpowiednie typy zmiennych
 napraw_strukture <- function(df) {
   df %>%
-    # zmienne numeryczne
-    mutate(
-      screenheight = as.numeric(screenheight),
-      screenwidth  = as.numeric(screenwidth)
-    ) %>%
+    # # zmienne numeryczne - juz nieaktualne bo jednak wyrzucamy zmienna bo za duzo NA
+    # mutate(
+    #   screenheight = as.numeric(screenheight),
+    #   screenwidth  = as.numeric(screenwidth)
+    # ) %>%
     # zmienne kategoryczne
     mutate(across(any_of(c(
       "description",
@@ -264,7 +307,8 @@ proba_testowa  <- napraw_strukture(proba_testowa)
 ```
 
 <details>
-  <summary> Struktura zbioru danych po naprawie </summary>
+
+<summary>Struktura zbioru danych po naprawie</summary>
 
 ```{r typy_zmiennych_po_naprawie}
 str(proba_uczaca)
@@ -272,7 +316,8 @@ str(proba_uczaca)
 
 </details>
 
-#	Wzbogacanie danych 
+# Wzbogacanie danych
+
 <!-- (utworzenie dodatkowych zmiennych, np. dzień tygodnia na podstawie createtime, przypisanie cech transakcji inicjalizującej do transakcji rekurencyjnej)  -->
 
 <!-- Pomysły inspirowane: -->
@@ -298,7 +343,6 @@ str(proba_uczaca)
 <!-- - Czy kwota jest całkowita? (np. amount %% 1 == 0). W płatnościach automatycznych kwoty z końcówkami (np. 19.99) są typowe dla subskrypcji, a całkowite (np. 100) dla doładowań. -->
 
 <!-- - Logarytm kwoty: Do modelu regresji warto dodać log(amount), ponieważ rozkład kwot w transakcjach zwykle jest silnie prawoskośny (masz dużo małych płatności i kilka bardzo dużych, co widać w Twoim summary: Median 30, Max 3450). -->
-
 
 <!-- Do raportu i modelu w pierwszej kolejności wrzuć (inne mogą być ryzykowne): -->
 
@@ -326,6 +370,38 @@ str(proba_uczaca)
 
 <!-- Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka -->
 
+## TYMCZASOWY KODZIK ZEBYM MOGLA WIDZIEC CZY CHARAKTERYSTYKA KARTY I URZĄDZENIA DZIAŁA
+
+```{r tymczasowe_Hani}
+# 1. Najpierw tworzymy status sukces/porażka na głównym zbiorze
+proba_uczaca <- proba_uczaca %>%
+  mutate(target_status = ifelse(status == "completed successfully", "sukces", "porazka"),
+         target_status = as.factor(target_status))
+
+# 1. Wyodrębniamy same transakcje inicjalizujące, żeby wyciągnąć z nich datę startu
+inicjalizujace_info <- proba_uczaca %>%
+  filter(grepl("INIT", recurringaction)) %>%
+  select(id, init_time = createtime)
+
+# 2. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (uczacy)
+uczaca_rekurencyjne <- proba_uczaca %>%
+  # Wybieramy tylko AUTO i MANUAL
+  filter(recurringaction %in% c("AUTO", "MANUAL")) %>%
+  # Doklejamy datę inicjalizacji po ID
+  left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id"))
+
+# 3. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (testowy)
+testowa_rekurencyjne <- proba_testowa %>%
+  filter(recurringaction %in% c("AUTO", "MANUAL")) %>%
+  # Tu też doklejamy info o inicjalizacji (korzystając z info z bazy uczącej)
+  left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id"))
+
+# 4. Sprawdzenie, czy mamy dane (powinno być mniej wierszy niż w pełnym zbiorze)
+nrow(uczaca_rekurencyjne)
+
+
+```
+
 ## Definicja zmiennych celu
 
 Klasyfikacja: Przekształcenie zmiennej status na postać binarną (Sukces/Porażka) zgodnie z wymogami projektu (ustawienie "Porażki" jako poziomu pozytywnego do F-miary).
@@ -340,7 +416,6 @@ Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transfor
 
 ```
 
-
 ## Segmentacja transakcji rekurencyjnych
 
 Odfiltrowanie transakcji inicjalizujących (INIT) od właściwego zbioru do modelowania (AUTO/MANUAL).
@@ -350,7 +425,6 @@ Uzasadnienie pominięcia transakcji inicjalizujących w modelowaniu (zgodnie z i
 ```{r}
 
 ```
-
 
 ## Rekonstrukcja relacji między transakcjami (Self-join)
 
@@ -366,7 +440,6 @@ Przeniesienie cech z momentu rejestracji karty (np. sposób inicjalizacji: PAYME
 
 ```
 
-
 ## Inżynieria cech czasowych (Time-based Features)
 
 Analiza cyklu dobowego i tygodniowego: Ekstrakcja godziny, dnia tygodnia oraz flagi weekendu ze zmiennej createtime.
@@ -377,41 +450,80 @@ Identyfikacja okresów krytycznych: Stworzenie zmiennej "Pora nocna" (00:00 – 
 
 ```
 
+## Charakterystyka karty
 
-## Charakterystyka karty i urządzenia
+### Wiek karty w systemie
 
-Wiek karty w systemie: Obliczenie czasu, jaki upłynął od rejestracji karty do danej transakcji.
+Obliczono różnicę czasu pomiędzy transakcją rekurencyjną a powiązaną z nią transakcją inicjalizującą, co pozwoliło na określenie stażu danej karty w systemie. Zmienna ta ma na celu sprawdzenie hipotezy, czy karty o dłuższej historii subskrypcyjnej rzadziej generują błędy płatności.
 
-```{r}
+```{r wiek_karty}
+# Obliczamy różnicę w dniach
+uczaca_rekurencyjne <- uczaca_rekurencyjne %>%
+  mutate(wiek_karty_dni = as.numeric(difftime(createtime, init_time, units = "days")))
 
+testowa_rekurencyjne <- testowa_rekurencyjne %>%
+  mutate(wiek_karty_dni = as.numeric(difftime(createtime, init_time, units = "days")))
+
+# Sprawdzenie statystyk (czy nie ma wartości ujemnych)
+summary(uczaca_rekurencyjne$wiek_karty_dni)
 ```
 
-Analiza ważności karty: Obliczenie liczby miesięcy do wygaśnięcia karty oraz identyfikacja kart kończących ważność w roku transakcji.
+### Analiza ważności karty
 
-```{r}
+Wyznaczono liczbę miesięcy pozostałych do wygaśnięcia karty oraz stworzono zmienną dychotomiczną identyfikującą transakcje dokonane w roku utraty ważności. Informacja ta jest kluczowa dla modelu klasyfikacji, gdyż zbliżający się termin ważności karty może być przyczyną odrzuceń płatności przez wystawcę.
 
+```{r waznosc_karty}
+# Funkcja pomocnicza dla obu zbiorów
+oblicz_waznosc <- function(df) {
+  df %>%
+    mutate(
+      # Zakładamy, że karta wygasa z końcem podanego miesiąca
+      data_wygasniecia = as.Date(paste(expiryyear, expirymonth, "01", sep = "-")),
+      miesiace_do_wygasniecia = as.numeric(difftime(data_wygasniecia, createtime, units = "days")) / 30.44,
+      czy_wygasa_w_tym_roku = ifelse(expiryyear == format(createtime, "%Y"), "Tak", "Nie"),
+      czy_wygasa_w_tym_roku = as.factor(czy_wygasa_w_tym_roku)
+    )
+}
+
+uczaca_rekurencyjne <- oblicz_waznosc(uczaca_rekurencyjne)
+testowa_rekurencyjne <- oblicz_waznosc(testowa_rekurencyjne)
+
+# Sprawdzenie statystyk (czy nie ma wartości ujemnych)
+summary(uczaca_rekurencyjne$data_wygasniecia)
+summary(uczaca_rekurencyjne$miesiace_do_wygasniecia)
+summary(uczaca_rekurencyjne$czy_wygasa_w_tym_roku)
+summary(testowa_rekurencyjne$data_wygasniecia)
+summary(testowa_rekurencyjne$miesiace_do_wygasniecia)
+summary(testowa_rekurencyjne$czy_wygasa_w_tym_roku)
 ```
 
+### Pochodzenie karty
 
-Pochodzenie karty: Podział na karty krajowe (PL) i zagraniczne na podstawie countrycode.
+Dokonano segmentacji transakcji na krajowe oraz zagraniczne na podstawie kodu kraju wydawcy karty (`countrycode`). Wprowadzenie tego podziału pozwala na ocenę wpływu potencjalnych blokad antyfraudowych stosowanych przez zagraniczne instytucje finansowe na skuteczność płatności.
 
-```{r}
+```{r pochodzenie_karty}
+uczaca_rekurencyjne <- uczaca_rekurencyjne %>%
+  mutate(pochodzenie_karty = ifelse(countrycode == "PL", "Krajowa", "Zagraniczna"),
+         pochodzenie_karty = as.factor(pochodzenie_karty))
 
+testowa_rekurencyjne <- testowa_rekurencyjne %>%
+  mutate(pochodzenie_karty = ifelse(countrycode == "PL", "Krajowa", "Zagraniczna"),
+         pochodzenie_karty = as.factor(pochodzenie_karty))
+
+# Sprawdzenie rozkładu
+table(uczaca_rekurencyjne$pochodzenie_karty)
 ```
 
+# Budowanie modeli
 
-Profil urządzenia: Przekształcenie wymiarów ekranu na wskaźnik proporcji (Aspect Ratio) oraz kategoryzacja urządzenia (Mobile/Desktop).
-
-```{r}
-
-```
-
-
-#	Budowanie modeli
 <!-- (m.in. ustalanie optymalnych wartości parametrów, wybór najlepszego modelu)  -->
-#	Prezentacja i interpretacja wyników modelu 
-#	Ocena uzyskanych modeli 
-#	Predykcja modelowanych zmiennych na danych testowych 
+
+# Prezentacja i interpretacja wyników modelu
+
+# Ocena uzyskanych modeli
+
+# Predykcja modelowanych zmiennych na danych testowych
+
 <!-- predykcje należy zapisać w odpowiednich kolumnach obiektu predykcje_testowa  -->
- 
+
 # Podsumowanie
