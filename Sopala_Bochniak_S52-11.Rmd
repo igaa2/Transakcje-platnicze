@@ -455,7 +455,7 @@ Przeniesienie cech z momentu rejestracji karty (np. sposób inicjalizacji: PAYME
 
 ```
 
-## Inżynieria cech czasowych (Time-based Features)
+## Inżynieria cech czasowych
 
 W celu uwzględnienia cykliczności zachowań płatniczych oraz specyfiki systemów bankowych, dokonano dekompozycji zmiennej czasowej `createtime`. Na jej podstawie wyznaczono godzinę oraz dzień tygodnia transakcji, zachowując ich chronologiczny porządek. Dodatkowo wprowadzono zmienne binarne identyfikujące transakcje weekendowe oraz te realizowane w godzinach nocnych (00:00–05:00), które są szczególnie narażone na niepowodzenie ze względu na potencjalne przerwy techniczne po stronie wystawców kart.
 
