@@ -217,9 +217,9 @@ Szczególną uwagę poświęcono zmiennym tekstowym `browseragent` oraz `descrip
 
 Sprawdzono liczbę unikalnych wariantów dla obu podejrzanych zmiennych:
 
-```{r ile_unikalnych_podejrzane_zmienne}
-length(unique(proba_uczaca$browseragent))
-length(unique(proba_uczaca$description))
+```{r ile_unikalnych_podejrzane_zmienne, echo = F}
+cat("Liczba wariantów w zmiennej browseragent:", length(unique(proba_uczaca$browseragent)))
+cat("Liczba wariantów w zmiennej description:", length(unique(proba_uczaca$description)))
 ```
 
 Analiza wykazała istotną różnicę:
