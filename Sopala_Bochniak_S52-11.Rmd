@@ -376,9 +376,6 @@ str(proba_uczaca)
 
 <!-- Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka -->
 
-<<<<<<< HEAD
-
-=======
 <!-- ## TYMCZASOWY KODZIK ZEBYM MOGLA WIDZIEC CZY CHARAKTERYSTYKA KARTY I URZĄDZENIA DZIAŁA -->
 
 <!-- ```{r tymczasowe_Hani, include = F} -->
@@ -410,7 +407,7 @@ str(proba_uczaca)
 
 
 <!-- ``` -->
->>>>>>> d4ba535a7ba76d1ad00ea66e4ee547681a242408
+
 
 ## Segmentacja transakcji rekurencyjnych
 
@@ -468,7 +465,7 @@ uczaca_rekurencyjne <- proba_uczaca %>%
 ```
 
 <details>
-=======
+
 ```{r}
 uczaca_init <- wybierz_inicjalizujace(proba_uczaca)
 uczaca_rekurencyjne <- wybierz_rekurencyjne(proba_uczaca)
@@ -504,7 +501,6 @@ uczaca_rekurencyjne_polaczone <- uczaca_rekurencyjne %>%
   )
 ```
 
->>>>>>> d4ba535a7ba76d1ad00ea66e4ee547681a242408
 
 ## Definicja zmiennych celu
 
