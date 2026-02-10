@@ -370,37 +370,37 @@ str(proba_uczaca)
 
 <!-- Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka -->
 
-## TYMCZASOWY KODZIK ZEBYM MOGLA WIDZIEC CZY CHARAKTERYSTYKA KARTY I URZĄDZENIA DZIAŁA
+<!-- ## TYMCZASOWY KODZIK ZEBYM MOGLA WIDZIEC CZY CHARAKTERYSTYKA KARTY I URZĄDZENIA DZIAŁA -->
 
-```{r tymczasowe_Hani, include = F}
-# 1. Najpierw tworzymy status sukces/porażka na głównym zbiorze
-proba_uczaca <- proba_uczaca %>%
-  mutate(target_status = ifelse(status == "completed successfully", "sukces", "porazka"),
-         target_status = as.factor(target_status))
+<!-- ```{r tymczasowe_Hani, include = F} -->
+<!-- # 1. Najpierw tworzymy status sukces/porażka na głównym zbiorze -->
+<!-- proba_uczaca <- proba_uczaca %>% -->
+<!--   mutate(target_status = ifelse(status == "completed successfully", "sukces", "porazka"), -->
+<!--          target_status = as.factor(target_status)) -->
 
-# 1. Wyodrębniamy same transakcje inicjalizujące, żeby wyciągnąć z nich datę startu
-inicjalizujace_info <- proba_uczaca %>%
-  filter(grepl("INIT", recurringaction)) %>%
-  select(id, init_time = createtime)
+<!-- # 1. Wyodrębniamy same transakcje inicjalizujące, żeby wyciągnąć z nich datę startu -->
+<!-- inicjalizujace_info <- proba_uczaca %>% -->
+<!--   filter(grepl("INIT", recurringaction)) %>% -->
+<!--   select(id, init_time = createtime) -->
 
-# 2. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (uczacy)
-uczaca_rekurencyjne <- proba_uczaca %>%
-  # Wybieramy tylko AUTO i MANUAL
-  filter(recurringaction %in% c("AUTO", "MANUAL")) %>%
-  # Doklejamy datę inicjalizacji po ID
-  left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id"))
+<!-- # 2. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (uczacy) -->
+<!-- uczaca_rekurencyjne <- proba_uczaca %>% -->
+<!--   # Wybieramy tylko AUTO i MANUAL -->
+<!--   filter(recurringaction %in% c("AUTO", "MANUAL")) %>% -->
+<!--   # Doklejamy datę inicjalizacji po ID -->
+<!--   left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id")) -->
 
-# 3. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (testowy)
-testowa_rekurencyjne <- proba_testowa %>%
-  filter(recurringaction %in% c("AUTO", "MANUAL")) %>%
-  # Tu też doklejamy info o inicjalizacji (korzystając z info z bazy uczącej)
-  left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id"))
+<!-- # 3. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (testowy) -->
+<!-- testowa_rekurencyjne <- proba_testowa %>% -->
+<!--   filter(recurringaction %in% c("AUTO", "MANUAL")) %>% -->
+<!--   # Tu też doklejamy info o inicjalizacji (korzystając z info z bazy uczącej) -->
+<!--   left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id")) -->
 
-# 4. Sprawdzenie, czy mamy dane (powinno być mniej wierszy niż w pełnym zbiorze)
-nrow(uczaca_rekurencyjne)
+<!-- # 4. Sprawdzenie, czy mamy dane (powinno być mniej wierszy niż w pełnym zbiorze) -->
+<!-- nrow(uczaca_rekurencyjne) -->
 
 
-```
+<!-- ``` -->
 
 ## Segmentacja transakcji rekurencyjnych
 
@@ -416,13 +416,12 @@ Dlatego dokonano podziału zbioru na:
 
 <summary>Wyodrębnienie transakcji inicjalizujących</summary>
 
-```{r}
+```{r uczaca_init}
 uczaca_init <- proba_uczaca %>%
   filter(grepl("INIT", recurringaction)) %>%
   select(
     id_init = id,                    # zmiana nazwy ID, żeby łączyło się z foreign key
-    data_rejestracji = createtime,   # data rejestracji karty
-    browser_init = browseragent      # przeglądarka w trakcie rejestracji
+    time_init = createtime,          # data rejestracji karty
   )
 ```
 
@@ -432,12 +431,36 @@ uczaca_init <- proba_uczaca %>%
 
 <summary>Wyodrębnienie transakcji rekurencyjnych</summary>
 
-```{r}
+```{r uczaca_rekurencyjne}
 uczaca_rekurencyjne <- proba_uczaca %>%
   filter(recurringaction %in% c("AUTO", "MANUAL"))
 ```
 
 <details>
+
+```{r liczba_trans_init_rek, echo = F}
+cat("Liczba transakcji inicjalizujących:", nrow(uczaca_init), "\n")
+cat("Liczba transakcji rekurencyjnych:", nrow(uczaca_rekurencyjne), "\n")
+```
+
+## Rekonstrukcja relacji między transakcjami
+
+Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą. Pozwoliło to na wygenerowanie nowej zmiennej: `wiek_karty_dni`. Zmienna ta reprezentuje liczbę dni, jaka upłynęła od momentu rejestracji karty (`time_init`) do momentu bieżącej transakcji rekurencyjnej (`createtime`).
+
+
+```{r polaczenie_rek_init}
+# Łączymy transakcje rekurencyjne z inicjalizującymi
+uczaca_rekurencyjne_polaczone <- uczaca_rekurencyjne %>%
+  left_join(uczaca_init, by = c("initialtransaction_id" = "id_init")) %>%
+  mutate(
+    
+    # czas od momentu rejestracji do bieżącej transakcji (w dniach)
+    wiek_karty_dni = as.numeric(difftime(createtime, time_init, units = "days")),
+    
+    # zabezpieczenie: jeśli wyjdzie ujemny wynik (błąd danych) lub NA, wstawiamy 0
+    wiek_karty_dni = ifelse(is.na(wiek_karty_dni) | wiek_karty_dni < 0, 0, wiek_karty_dni)
+  )
+```
 
 ## Definicja zmiennych celu
 
@@ -470,19 +493,8 @@ Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transfor
 
 
 
-## Rekonstrukcja relacji między transakcjami (Self-join)
 
-Wykorzystanie initialtransaction_id do powiązania transakcji rekurencyjnych z ich "matką" (transakcją inicjalizującą).
 
-```{r}
-
-```
-
-Przeniesienie cech z momentu rejestracji karty (np. sposób inicjalizacji: PAYMENT vs REFUND) do późniejszych transakcji.
-
-```{r}
-
-```
 
 ## Inżynieria cech czasowych
 
