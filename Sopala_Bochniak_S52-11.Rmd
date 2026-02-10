@@ -41,7 +41,7 @@ pacman::p_load(
 )
 ```
 
-# Wstęp
+# Zbiór danych
 
 ```{r ladowanie_danych, echo = FALSE}
 load('./dane_zaliczenie.RData')
