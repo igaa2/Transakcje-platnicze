@@ -277,7 +277,44 @@ str(proba_uczaca)
 #	Wzbogacanie danych 
 <!-- (utworzenie dodatkowych zmiennych, np. dzień tygodnia na podstawie createtime, przypisanie cech transakcji inicjalizującej do transakcji rekurencyjnej)  -->
 
-## Łączenie transakcji
+Pomysły inspirowane:
+
+- zamiana screenheight oraz screenwidth na aspectratio tudzież Popularność urządzenia (screenwidth / screenheight): Możesz stworzyć zmienną "typ urządzenia" (np. Mobile vs Desktop). Transakcje z urządzeń mobilnych mogą mieć inną charakterystykę kwot.
+
+- Zagraniczna karta: Porównanie countrycode z kodem kraju, w którym działa partner (jeśli jest dostępny) lub po prostu flaga, czy karta jest z Polski (PL vs reszta świata).
+
+- Wiek karty w systemie: Różnica czasu między createtime transakcji rekurencyjnej a createtime transakcji inicjalizującej. Nowe subskrypcje mogą zachowywać się inaczej niż te trwające od roku.
+
+- Czy karta wygasa w tym roku? Zmienna binarna (0/1). Karty bliskie daty ważności często są przyczyną błędów ("expired card").
+
+- Liczba poprzednich transakcji: Ile transakcji rekurencyjnych wykonano już dla tego initialtransaction_id.
+
+- Skuteczność historyczna: Procent udanych transakcji dla danej karty (identyfikowanej przez initialtransaction_id) do momentu obecnej transakcji.
+
+- Średnia kwota transakcji: Czy obecne amount odbiega od średniej dla tej konkretnej karty?
+
+- Średnia skuteczność wystawcy (issuer): Niektóre banki mogą mieć bardziej rygorystyczne filtry antyfraudowe, co zwiększa liczbę odrzuceń.
+
+- Ryzykowna godzina: Zamiast samej godziny, zmienna binarna "czy noc" (np. 00:00 - 05:00). Wiele systemów bankowych ma wtedy przerwy techniczne, co generuje błędy płatności.
+
+- Czy kwota jest całkowita? (np. amount %% 1 == 0). W płatnościach automatycznych kwoty z końcówkami (np. 19.99) są typowe dla subskrypcji, a całkowite (np. 100) dla doładowań.
+
+- Logarytm kwoty: Do modelu regresji warto dodać log(amount), ponieważ rozkład kwot w transakcjach zwykle jest silnie prawoskośny (masz dużo małych płatności i kilka bardzo dużych, co widać w Twoim summary: Median 30, Max 3450).
+
+
+Do raportu i modelu w pierwszej kolejności wrzuć (inne mogą być ryzykowne):
+
+- Wiek karty (różnica createtime rekurencyjnej i inicjalizującej).
+
+- Pora dnia / Noc (z createtime).
+
+- Czas do wygaśnięcia (różnica między expiryyear/month a createtime).
+
+- Flaga "Krajowa/Zagraniczna" (countrycode == 'PL').
+
+- Logarytm kwoty (tylko do regresji).
+
+## Łączenie transakcji 
 
 Musisz przypisać cechy transakcji inicjalizującej (INIT...) do transakcji rekurencyjnej (AUTO/MANUAL) za pomocą initialtransaction_id. To klucz do sukcesu – np. czy to, że karta została zarejestrowana z "REFUND", wpływa na późniejszą skuteczność płatności?
 
@@ -289,7 +326,10 @@ Musisz przypisać cechy transakcji inicjalizującej (INIT...) do transakcji reku
 
 ## Zmienna celu dla klasyfikacji
 
-Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana.
+Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka
+
+
+
 
 #	Budowanie modeli
 <!-- (m.in. ustalanie optymalnych wartości parametrów, wybór najlepszego modelu)  -->
