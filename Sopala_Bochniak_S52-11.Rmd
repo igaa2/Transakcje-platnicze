@@ -275,56 +275,136 @@ str(proba_uczaca)
 #	Wzbogacanie danych 
 <!-- (utworzenie dodatkowych zmiennych, np. dzień tygodnia na podstawie createtime, przypisanie cech transakcji inicjalizującej do transakcji rekurencyjnej)  -->
 
-Pomysły inspirowane:
+<!-- Pomysły inspirowane: -->
 
-- zamiana screenheight oraz screenwidth na aspectratio tudzież Popularność urządzenia (screenwidth / screenheight): Możesz stworzyć zmienną "typ urządzenia" (np. Mobile vs Desktop). Transakcje z urządzeń mobilnych mogą mieć inną charakterystykę kwot.
+<!-- - zamiana screenheight oraz screenwidth na aspectratio tudzież Popularność urządzenia (screenwidth / screenheight): Możesz stworzyć zmienną "typ urządzenia" (np. Mobile vs Desktop). Transakcje z urządzeń mobilnych mogą mieć inną charakterystykę kwot. -->
 
-- Zagraniczna karta: Porównanie countrycode z kodem kraju, w którym działa partner (jeśli jest dostępny) lub po prostu flaga, czy karta jest z Polski (PL vs reszta świata).
+<!-- - Zagraniczna karta: Porównanie countrycode z kodem kraju, w którym działa partner (jeśli jest dostępny) lub po prostu flaga, czy karta jest z Polski (PL vs reszta świata). -->
 
-- Wiek karty w systemie: Różnica czasu między createtime transakcji rekurencyjnej a createtime transakcji inicjalizującej. Nowe subskrypcje mogą zachowywać się inaczej niż te trwające od roku.
+<!-- - Wiek karty w systemie: Różnica czasu między createtime transakcji rekurencyjnej a createtime transakcji inicjalizującej. Nowe subskrypcje mogą zachowywać się inaczej niż te trwające od roku. -->
 
-- Czy karta wygasa w tym roku? Zmienna binarna (0/1). Karty bliskie daty ważności często są przyczyną błędów ("expired card").
+<!-- - Czy karta wygasa w tym roku? Zmienna binarna (0/1). Karty bliskie daty ważności często są przyczyną błędów ("expired card"). -->
 
-- Liczba poprzednich transakcji: Ile transakcji rekurencyjnych wykonano już dla tego initialtransaction_id.
+<!-- - Liczba poprzednich transakcji: Ile transakcji rekurencyjnych wykonano już dla tego initialtransaction_id. -->
 
-- Skuteczność historyczna: Procent udanych transakcji dla danej karty (identyfikowanej przez initialtransaction_id) do momentu obecnej transakcji.
+<!-- - Skuteczność historyczna: Procent udanych transakcji dla danej karty (identyfikowanej przez initialtransaction_id) do momentu obecnej transakcji. -->
 
-- Średnia kwota transakcji: Czy obecne amount odbiega od średniej dla tej konkretnej karty?
+<!-- - Średnia kwota transakcji: Czy obecne amount odbiega od średniej dla tej konkretnej karty? -->
 
-- Średnia skuteczność wystawcy (issuer): Niektóre banki mogą mieć bardziej rygorystyczne filtry antyfraudowe, co zwiększa liczbę odrzuceń.
+<!-- - Średnia skuteczność wystawcy (issuer): Niektóre banki mogą mieć bardziej rygorystyczne filtry antyfraudowe, co zwiększa liczbę odrzuceń. -->
 
-- Ryzykowna godzina: Zamiast samej godziny, zmienna binarna "czy noc" (np. 00:00 - 05:00). Wiele systemów bankowych ma wtedy przerwy techniczne, co generuje błędy płatności.
+<!-- - Ryzykowna godzina: Zamiast samej godziny, zmienna binarna "czy noc" (np. 00:00 - 05:00). Wiele systemów bankowych ma wtedy przerwy techniczne, co generuje błędy płatności. -->
 
-- Czy kwota jest całkowita? (np. amount %% 1 == 0). W płatnościach automatycznych kwoty z końcówkami (np. 19.99) są typowe dla subskrypcji, a całkowite (np. 100) dla doładowań.
+<!-- - Czy kwota jest całkowita? (np. amount %% 1 == 0). W płatnościach automatycznych kwoty z końcówkami (np. 19.99) są typowe dla subskrypcji, a całkowite (np. 100) dla doładowań. -->
 
-- Logarytm kwoty: Do modelu regresji warto dodać log(amount), ponieważ rozkład kwot w transakcjach zwykle jest silnie prawoskośny (masz dużo małych płatności i kilka bardzo dużych, co widać w Twoim summary: Median 30, Max 3450).
+<!-- - Logarytm kwoty: Do modelu regresji warto dodać log(amount), ponieważ rozkład kwot w transakcjach zwykle jest silnie prawoskośny (masz dużo małych płatności i kilka bardzo dużych, co widać w Twoim summary: Median 30, Max 3450). -->
 
 
-Do raportu i modelu w pierwszej kolejności wrzuć (inne mogą być ryzykowne):
+<!-- Do raportu i modelu w pierwszej kolejności wrzuć (inne mogą być ryzykowne): -->
 
-- Wiek karty (różnica createtime rekurencyjnej i inicjalizującej).
+<!-- - Wiek karty (różnica createtime rekurencyjnej i inicjalizującej). -->
 
-- Pora dnia / Noc (z createtime).
+<!-- - Pora dnia / Noc (z createtime). -->
 
-- Czas do wygaśnięcia (różnica między expiryyear/month a createtime).
+<!-- - Czas do wygaśnięcia (różnica między expiryyear/month a createtime). -->
 
-- Flaga "Krajowa/Zagraniczna" (countrycode == 'PL').
+<!-- - Flaga "Krajowa/Zagraniczna" (countrycode == 'PL'). -->
 
-- Logarytm kwoty (tylko do regresji).
+<!-- - Logarytm kwoty (tylko do regresji). -->
 
-## Łączenie transakcji 
+<!-- ## Łączenie transakcji  -->
 
-Musisz przypisać cechy transakcji inicjalizującej (INIT...) do transakcji rekurencyjnej (AUTO/MANUAL) za pomocą initialtransaction_id. To klucz do sukcesu – np. czy to, że karta została zarejestrowana z "REFUND", wpływa na późniejszą skuteczność płatności?
+<!-- Musisz przypisać cechy transakcji inicjalizującej (INIT...) do transakcji rekurencyjnej (AUTO/MANUAL) za pomocą initialtransaction_id. To klucz do sukcesu – np. czy to, że karta została zarejestrowana z "REFUND", wpływa na późniejszą skuteczność płatności? -->
 
-## Inżynieria cech (Feature Engineering)
+<!-- ## Inżynieria cech (Feature Engineering) -->
 
-- Z createtime wyciągnij: godzinę (pory dnia), dzień tygodnia i czy jest to weekend.
+<!-- - Z createtime wyciągnij: godzinę (pory dnia), dzień tygodnia i czy jest to weekend. -->
 
-- Z expiryyear i expirymonth oblicz "czas do wygaśnięcia karty" w momencie transakcji.
+<!-- - Z expiryyear i expirymonth oblicz "czas do wygaśnięcia karty" w momencie transakcji. -->
 
-## Zmienna celu dla klasyfikacji
+<!-- ## Zmienna celu dla klasyfikacji -->
 
-Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka
+<!-- Musisz stworzyć nową zmienną binarną. Pamiętaj o instrukcji: sukces to status == "completed successfully", a przy liczeniu F-miary przypadkiem pozytywnym (na którym nam zależy w sensie detekcji) jest transakcja nieudana. zamiana statusu na sukces/porażka -->
+
+## Definicja zmiennych celu
+
+Klasyfikacja: Przekształcenie zmiennej status na postać binarną (Sukces/Porażka) zgodnie z wymogami projektu (ustawienie "Porażki" jako poziomu pozytywnego do F-miary).
+
+```{r}
+
+```
+
+Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna).
+
+```{r}
+
+```
+
+
+## Segmentacja transakcji rekurencyjnych
+
+Odfiltrowanie transakcji inicjalizujących (INIT) od właściwego zbioru do modelowania (AUTO/MANUAL).
+
+Uzasadnienie pominięcia transakcji inicjalizujących w modelowaniu (zgodnie z instrukcją: "z definicji są udane").
+
+```{r}
+
+```
+
+
+## Rekonstrukcja relacji między transakcjami (Self-join)
+
+Wykorzystanie initialtransaction_id do powiązania transakcji rekurencyjnych z ich "matką" (transakcją inicjalizującą).
+
+```{r}
+
+```
+
+Przeniesienie cech z momentu rejestracji karty (np. sposób inicjalizacji: PAYMENT vs REFUND) do późniejszych transakcji.
+
+```{r}
+
+```
+
+
+## Inżynieria cech czasowych (Time-based Features)
+
+Analiza cyklu dobowego i tygodniowego: Ekstrakcja godziny, dnia tygodnia oraz flagi weekendu ze zmiennej createtime.
+
+Identyfikacja okresów krytycznych: Stworzenie zmiennej "Pora nocna" (00:00 – 05:00) w celu uchwycenia przerw technicznych w systemach bankowych.
+
+```{r}
+
+```
+
+
+## Charakterystyka karty i urządzenia
+
+Wiek karty w systemie: Obliczenie czasu, jaki upłynął od rejestracji karty do danej transakcji.
+
+```{r}
+
+```
+
+Analiza ważności karty: Obliczenie liczby miesięcy do wygaśnięcia karty oraz identyfikacja kart kończących ważność w roku transakcji.
+
+```{r}
+
+```
+
+
+Pochodzenie karty: Podział na karty krajowe (PL) i zagraniczne na podstawie countrycode.
+
+```{r}
+
+```
+
+
+Profil urządzenia: Przekształcenie wymiarów ekranu na wskaźnik proporcji (Aspect Ratio) oraz kategoryzacja urządzenia (Mobile/Desktop).
+
+```{r}
+
+```
 
 
 #	Budowanie modeli
