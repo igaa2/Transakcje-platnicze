@@ -23,11 +23,14 @@ body {
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-<details>
-  <summary> Templatka zawijaczy kodu </summary>
+<!-- <details> -->
+<!--   <summary> Templatka zawijaczy kodu </summary> -->
 
 
-</details>
+<!-- </details> -->
+
+
+<!-- <div style="height: 10px;"></div> -->
 
 ```{r ladowanie_bibliotek}
 pacman::p_load(
@@ -74,23 +77,44 @@ Jako zmienne zależne wybrano `amount` (regresja) oraz `status` (klasyfikacja).
 
 #	Wstępna eksploracja danych 
 
-## Wymiary zbiorów
+## Wymiary zbiorów danych
 
-```{r wymiary_zbiorow, include = F}
-dim(proba_uczaca)
-dim(proba_testowa)
+```{r wymiary_zbiorow}
+cat("Wymiary zbioru uczącego:", dim(proba_uczaca))
+cat("Wymiary zbioru testowego:", dim(proba_testowa))
 ```
 
-```{r podsumowanie_zbiorow, include = F}
+Zbiór uczący liczy 29 412 obserwacji, natomiast zbiór testowy obejmuje 15 185 rekordów.
+
+<details>
+  <summary> Podsumowanie zmiennych w zbiorze uczącym </summary>
+
+```{r podsumowanie_zbioru_uczacego}
 summary(proba_uczaca)
+```
+
+</details>
+
+<div style="height: 10px;"></div>
+
+<details>
+  <summary> Podsumowanie zmiennych w zbiorze testowym </summary>
+
+```{r podsumowanie_zbioru_testowego}
 summary(proba_testowa)
 ```
+
+</details>
+
+<div style="height: 10px;"></div>
+
+W obu zbiorach występuje po ok. 20 zmiennych opisujących charakterystykę transakcji, przy czym zbiór testowy jest pozbawiony zmiennej celu `status`. Wstępna analiza wskazuje na liczne braki danych w kolumnach `initialtransaction_id` oraz `payclickedtime`.
 
 ## Czyszczenie danych i ich braki
 
 W celu identyfikacji niestandardowych oznaczeń braków danych przeprowadzono analizę unikalnych wartości zmiennych kategorycznych.
 
-```{r f_znajdz_unikalne, echo = F}
+```{r f_znajdz_unikalne}
 # Funkcja znajdująca unikalne wartości wśród zmiennych w celu zidentyfikowania ewentualnych innych niż NA oznaczeń braków danych (tylko w przypadku danych tekstowych lub faktorów, bo numeryczne wywaliłyby błąd przy wczytywaniu)
 znajdz_unikalne <- function(df) {
   for (kolumna in names(df)) {
@@ -112,14 +136,31 @@ znajdz_unikalne <- function(df) {
 }
 ```
 
-```{r znalezienie_unikalnych}
+<details>
+  <summary> Unikalne wartości w próbie uczącej </summary>
+
+```{r znalezienie_unikalnych_uczaca}
 znajdz_unikalne(proba_uczaca)
+```
+
+</details>
+
+<div style="height: 10px;"></div>
+
+<details>
+  <summary> Unikalne wartości w próbie testowej </summary>
+
+```{r znalezienie_unikalnych_testowa}
 znajdz_unikalne(proba_testowa)
 ```
 
+</details>
+
+<div style="height: 10px;"></div>
+
 Wstępna analiza jakości danych ujawniła niespójne kodowanie brakujących wartości. Oprócz standardowych wartości `NA`, zidentyfikowano również puste ciągi znaków oraz wartości tekstowe NULL. Wszystkie te wartości zostały poddane rekodowaniu do standardowej wartości NA przed rozpoczęciem modelowania.
 
-```{r f_wyczysc_braki, echo = F}
+```{r f_wyczysc_braki}
 # Funkcja czyszcząca braki - ujednolica je do NA
 wyczysc_braki <- function(df) {
   
@@ -137,10 +178,29 @@ wyczysc_braki <- function(df) {
 
 ```{r czyszczenie_zbiorow}
 proba_uczaca <- wyczysc_braki(proba_uczaca)
-proba_testowa  <- wyczysc_braki(proba_testowa)
+proba_testowa <- wyczysc_braki(proba_testowa)
 ```
 
-Dodatkowo, zauważono, że zmienna `description` ma 4 kategorie, które można zaagregować w dwie. "PLAY - faktura" oraz "PLAY - FAKTURA" to to samo.
+W trakcie eksploracji braków danych zidentyfikowano niespójności w zapisie tytułów płatności (zmienna `description`). Te same kategorie były zapisywane w sposób nadmiarowy, różniąc się jedynie wielkością liter (np. "PLAY - faktura" vs "PLAY - FAKTURA" oraz "RedBull Mobile - faktura" vs "RedBull Mobile - FAKTURA").
+
+W celu wyeliminowania pozornej zmienności przeprowadzono proces ujednolicenia danych. Wszystkie znaki zostały skonwertowane na wielkie litery. Usunięto spacje brzegowe ze względów estetycznych.
+
+<details>
+  <summary> Efekt agregacji zmiennej `description` </summary>
+
+```{r zmienna_description}
+# Ujednolicenie wielkości liter i usuwanie białych znaków w opisie
+proba_uczaca <- proba_uczaca %>%
+  mutate(description = toupper(trimws(description)))
+
+proba_testowa <- proba_testowa %>%
+  mutate(description = toupper(trimws(description)))
+
+# Sprawdzenie efektu agragacji
+sort(unique(proba_uczaca$description))
+```
+
+</details>
 
 ## Sprawdzenie poprawności typów zmiennych
 
