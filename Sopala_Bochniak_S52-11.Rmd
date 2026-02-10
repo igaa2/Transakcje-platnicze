@@ -88,6 +88,8 @@ summary(proba_testowa)
 
 ## Czyszczenie danych i ich braki
 
+W celu identyfikacji niestandardowych oznaczeń braków danych przeprowadzono analizę unikalnych wartości zmiennych kategorycznych.
+
 ```{r f_znajdz_unikalne, include = F}
 # Funkcja znajdująca unikalne wartości wśród zmiennych w celu zidentyfikowania ewentualnych innych niż NA oznaczeń braków danych (tylko w przypadku danych tekstowych lub faktorów, bo numeryczne wywaliłyby błąd przy wczytywaniu)
 znajdz_unikalne <- function(df) {
@@ -109,6 +111,35 @@ znajdz_unikalne <- function(df) {
   }
 }
 ```
+
+```{r znalezienie_unikalnych}
+znajdz_unikalne(proba_uczaca)
+znajdz_unikalne(proba_testowa)
+```
+
+Wstępna analiza jakości danych ujawniła niespójne kodowanie brakujących wartości. Oprócz standardowych wartości NA, zidentyfikowano również puste ciągi znaków oraz wartości tekstowe NULL. Wszystkie te wartości zostały poddane rekodowaniu do standardowej wartości NA przed rozpoczęciem modelowania.
+
+```{r f_wyczysc_braki, include = F}
+# Funkcja czyszcząca braki - ujednolica je do NA
+wyczysc_braki <- function(df) {
+  
+  smieci <- c("", "NULL")
+  
+  df %>%
+
+    mutate(across(where(is.factor), as.character)) %>%
+    
+    # Jeśli wartość jest na liście "smieci", wstawiamy NA. W przeciwnym razie zostawiamy bez zmian
+    mutate(across(where(is.character), ~ ifelse(. %in% smieci, NA, .)))
+}
+```
+
+
+```{r czyszczenie_zbiorow}
+proba_uczaca <- wyczysc_braki(proba_uczaca)
+proba_testowa  <- wyczysc_braki(proba_testowa)
+```
+
 
 ## Sprawdzenie poprawności typów zmiennych
 
