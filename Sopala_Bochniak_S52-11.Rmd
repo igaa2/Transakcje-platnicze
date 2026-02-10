@@ -412,35 +412,44 @@ Dlatego dokonano podziału zbioru na:
 * **Zbiór właściwy (rekurencyjny):** Transakcje podlegające modelowaniu.
 
 
-<details>
-
-<summary>Wyodrębnienie transakcji inicjalizujących</summary>
-
-```{r uczaca_init}
-uczaca_init <- proba_uczaca %>%
-  filter(grepl("INIT", recurringaction)) %>%
-  select(
-    id_init = id,                    # zmiana nazwy ID, żeby łączyło się z foreign key
-    time_init = createtime,          # data rejestracji karty
-  )
+```{r f_wybierz_inicjalizujace, include = F}
+# Funkcja wyodrębniająca transakcje inicjalizujące
+wybierz_inicjalizujace <- function(df) {
+  
+  df_init <- df %>%
+    filter(grepl("INIT", recurringaction)) %>%
+    select(
+      id_init = id,            # klucz do łączenia
+      time_init = createtime   # data rejestracji karty
+    )
+}
 ```
 
-<details>
 
-<details>
-
-<summary>Wyodrębnienie transakcji rekurencyjnych</summary>
-
-```{r uczaca_rekurencyjne}
-uczaca_rekurencyjne <- proba_uczaca %>%
-  filter(recurringaction %in% c("AUTO", "MANUAL"))
+```{r f_wybierz_rekurencyjne, include = F}
+# Funkcja wyodrębniająca transakcje rekurencyjne
+wybierz_rekurencyjne <- function(df) {
+  
+  df_rekurencyjne <- df %>%
+    filter(recurringaction %in% c("AUTO", "MANUAL"))
+}
 ```
 
-<details>
+
+```{r}
+uczaca_init <- wybierz_inicjalizujace(proba_uczaca)
+uczaca_rekurencyjne <- wybierz_rekurencyjne(proba_uczaca)
+
+testowa_init <- wybierz_inicjalizujace(proba_testowa)
+testowa_rekurencyjne <- wybierz_rekurencyjne(proba_testowa)
+```
+
 
 ```{r liczba_trans_init_rek, echo = F}
-cat("Liczba transakcji inicjalizujących:", nrow(uczaca_init), "\n")
-cat("Liczba transakcji rekurencyjnych:", nrow(uczaca_rekurencyjne), "\n")
+cat("Liczba transakcji inicjalizujących w próbie uczącej:", nrow(uczaca_init), "\n")
+cat("Liczba transakcji rekurencyjnych w próbie uczącej:", nrow(uczaca_rekurencyjne), "\n")
+cat("Liczba transakcji inicjalizujących w próbie testowej:", nrow(testowa_init), "\n")
+cat("Liczba transakcji rekurencyjnych w próbie testowej:", nrow(testowa_rekurencyjne), "\n")
 ```
 
 ## Rekonstrukcja relacji między transakcjami
@@ -448,8 +457,8 @@ cat("Liczba transakcji rekurencyjnych:", nrow(uczaca_rekurencyjne), "\n")
 Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą. Pozwoliło to na wygenerowanie nowej zmiennej: `wiek_karty_dni`. Zmienna ta reprezentuje liczbę dni, jaka upłynęła od momentu rejestracji karty (`time_init`) do momentu bieżącej transakcji rekurencyjnej (`createtime`).
 
 
-```{r polaczenie_rek_init}
-# Łączymy transakcje rekurencyjne z inicjalizującymi
+```{r polaczenie_rek_init_uczacy}
+# Łączymy transakcje rekurencyjne z inicjalizującymi w zbiorze uczącym
 uczaca_rekurencyjne_polaczone <- uczaca_rekurencyjne %>%
   left_join(uczaca_init, by = c("initialtransaction_id" = "id_init")) %>%
   mutate(
@@ -461,6 +470,7 @@ uczaca_rekurencyjne_polaczone <- uczaca_rekurencyjne %>%
     wiek_karty_dni = ifelse(is.na(wiek_karty_dni) | wiek_karty_dni < 0, 0, wiek_karty_dni)
   )
 ```
+
 
 ## Definicja zmiennych celu
 
@@ -485,7 +495,7 @@ transformuj_status <- function(df) {
 proba_uczaca <- transformuj_status(proba_uczaca)
 ```
 
-Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna).
+Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna). NIE JESTEM PEWNA CZY ROBIĆ BO PODOBNO DRZEWA NIE WYMAGAJĄ
 
 ```{r}
 
@@ -522,7 +532,7 @@ dodaj_cechy_czasowe <- function(df) {
 }
 
 # Zastosowanie funkcji do obu zbiorów
-uczaca_rekurencyjne <- dodaj_cechy_czasowe(uczaca_rekurencyjne)
+uczaca_rekurencyjne_polaczone <- dodaj_cechy_czasowe(uczaca_rekurencyjne_polaczone)
 testowa_rekurencyjne <- dodaj_cechy_czasowe(testowa_rekurencyjne)
 
 # Weryfikacja poprawności (tabela krzyżowa godziny i flagi nocy)
