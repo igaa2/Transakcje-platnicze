@@ -436,7 +436,7 @@ wybierz_rekurencyjne <- function(df) {
 ```
 
 
-```{r}
+```{r podzial_trans_init_rek}
 uczaca_init <- wybierz_inicjalizujace(proba_uczaca)
 uczaca_rekurencyjne <- wybierz_rekurencyjne(proba_uczaca)
 
@@ -454,21 +454,20 @@ cat("Liczba transakcji rekurencyjnych w próbie testowej:", nrow(testowa_rekuren
 
 ## Rekonstrukcja relacji między transakcjami
 
-Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą. Pozwoliło to na wygenerowanie nowej zmiennej: `wiek_karty_dni`. Zmienna ta reprezentuje liczbę dni, jaka upłynęła od momentu rejestracji karty (`time_init`) do momentu bieżącej transakcji rekurencyjnej (`createtime`).
+Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą. 
 
+```{r f_dolacz_informacje_o_init, include = F}
+# Funkcja łącząca transakcje rekurencyjne z informacjami o inicjalizujących
+dolacz_informacje_o_init <- function(df_rekurencyjne, df_init) {
+  
+  df_rekurencyjne %>%
+    left_join(df_init, by = c("initialtransaction_id" = "id_init"))
+}
+```
 
-```{r polaczenie_rek_init_uczacy}
-# Łączymy transakcje rekurencyjne z inicjalizującymi w zbiorze uczącym
-uczaca_rekurencyjne_polaczone <- uczaca_rekurencyjne %>%
-  left_join(uczaca_init, by = c("initialtransaction_id" = "id_init")) %>%
-  mutate(
-    
-    # czas od momentu rejestracji do bieżącej transakcji (w dniach)
-    wiek_karty_dni = as.numeric(difftime(createtime, time_init, units = "days")),
-    
-    # zabezpieczenie: jeśli wyjdzie ujemny wynik (błąd danych) lub NA, wstawiamy 0
-    wiek_karty_dni = ifelse(is.na(wiek_karty_dni) | wiek_karty_dni < 0, 0, wiek_karty_dni)
-  )
+```{r dolaczenie_informacji_o_init}
+uczaca_rekurencyjne <- dolacz_informacje_o_init(uczaca_rekurencyjne, uczaca_init)
+testowa_rekurencyjne <- dolacz_informacje_o_init(testowa_rekurencyjne, testowa_init)
 ```
 
 
@@ -492,7 +491,7 @@ transformuj_status <- function(df) {
 
 
 ```{r transformacja_status}
-proba_uczaca <- transformuj_status(proba_uczaca)
+uczaca_rekurencyjne <- transformuj_status(uczaca_rekurencyjne)
 ```
 
 Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna). NIE JESTEM PEWNA CZY ROBIĆ BO PODOBNO DRZEWA NIE WYMAGAJĄ
@@ -532,7 +531,7 @@ dodaj_cechy_czasowe <- function(df) {
 }
 
 # Zastosowanie funkcji do obu zbiorów
-uczaca_rekurencyjne_polaczone <- dodaj_cechy_czasowe(uczaca_rekurencyjne_polaczone)
+uczaca_rekurencyjne <- dodaj_cechy_czasowe(uczaca_rekurencyjne)
 testowa_rekurencyjne <- dodaj_cechy_czasowe(testowa_rekurencyjne)
 
 # Weryfikacja poprawności (tabela krzyżowa godziny i flagi nocy)
@@ -605,7 +604,7 @@ rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "dzien_tygodnia", "
 
 ### Wiek karty w systemie
 
-Obliczono różnicę czasu pomiędzy transakcją rekurencyjną a powiązaną z nią transakcją inicjalizującą, co pozwoliło na określenie stażu danej karty w systemie. Zmienna ta ma na celu sprawdzenie hipotezy, czy karty o dłuższej historii subskrypcyjnej rzadziej generują błędy płatności.
+Połączenie każdej transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą pozwoliło na wygenerowanie nowej zmiennej: `wiek_karty_dni`. Zmienna ta reprezentuje liczbę dni, jaka upłynęła od momentu rejestracji karty (`time_init`) do momentu bieżącej transakcji rekurencyjnej (`createtime`), dzięki czemu określono staż danej karty w systemie. Zmienna ta ma na celu sprawdzenie hipotezy, czy karty o dłuższej historii subskrypcyjnej rzadziej generują błędy płatności.
 
 ```{r wiek_karty}
 # Obliczamy różnicę w dniach
