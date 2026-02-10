@@ -402,6 +402,43 @@ nrow(uczaca_rekurencyjne)
 
 ```
 
+## Segmentacja transakcji rekurencyjnych
+
+Zgodnie z definicją biznesową, transakcje inicjalizujące (`INIT`) są zawsze udane i służą jedynie do rejestracji metody płatności. Włączenie ich do zbioru uczącego sztucznie zawyżyłoby skuteczność modelu (trywialna predykcja). Celem projektu jest predykcja powodzenia obciążeń **rekurencyjnych** (`AUTO` i `MANUAL`), które niosą ryzyko odrzucenia.
+
+Dlatego dokonano podziału zbioru na:
+
+* **Słownik transakcji inicjalizujących:** Źródło cech o momencie rejestracji karty.
+* **Zbiór właściwy (rekurencyjny):** Transakcje podlegające modelowaniu.
+
+
+<details>
+
+<summary>Wyodrębnienie transakcji inicjalizujących</summary>
+
+```{r}
+uczaca_init <- proba_uczaca %>%
+  filter(grepl("INIT", recurringaction)) %>%
+  select(
+    id_init = id,                    # zmiana nazwy ID, żeby łączyło się z foreign key
+    data_rejestracji = createtime,   # data rejestracji karty
+    browser_init = browseragent      # przeglądarka w trakcie rejestracji
+  )
+```
+
+<details>
+
+<details>
+
+<summary>Wyodrębnienie transakcji rekurencyjnych</summary>
+
+```{r}
+uczaca_rekurencyjne <- proba_uczaca %>%
+  filter(recurringaction %in% c("AUTO", "MANUAL"))
+```
+
+<details>
+
 ## Definicja zmiennych celu
 
 Klasyfikacja: Przekształcenie zmiennej status na postać binarną (Sukces/Porażka) zgodnie z wymogami projektu (ustawienie "Porażki" jako poziomu pozytywnego do F-miary).
@@ -431,15 +468,7 @@ Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transfor
 
 ```
 
-## Segmentacja transakcji rekurencyjnych
 
-Odfiltrowanie transakcji inicjalizujących (INIT) od właściwego zbioru do modelowania (AUTO/MANUAL).
-
-Uzasadnienie pominięcia transakcji inicjalizujących w modelowaniu (zgodnie z instrukcją: "z definicji są udane").
-
-```{r}
-
-```
 
 ## Rekonstrukcja relacji między transakcjami (Self-join)
 
