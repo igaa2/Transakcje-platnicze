@@ -423,41 +423,6 @@ Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transfor
 ```
 
 
-
-
-
-
-## TYMCZASOWY KODZIK ZEBYM MOGLA WIDZIEC CZY CHARAKTERYSTYKA KARTY I URZĄDZENIA DZIAŁA
-
-```{r tymczasowe_Hani, include = F}
-# 1. Najpierw tworzymy status sukces/porażka na głównym zbiorze
-proba_uczaca <- proba_uczaca %>%
-  mutate(target_status = ifelse(status == "completed successfully", "sukces", "porazka"),
-         target_status = as.factor(target_status))
-
-# 1. Wyodrębniamy same transakcje inicjalizujące, żeby wyciągnąć z nich datę startu
-inicjalizujace_info <- proba_uczaca %>%
-  filter(grepl("INIT", recurringaction)) %>%
-  select(id, init_time = createtime)
-
-# 2. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (uczacy)
-uczaca_rekurencyjne <- proba_uczaca %>%
-  # Wybieramy tylko AUTO i MANUAL
-  filter(recurringaction %in% c("AUTO", "MANUAL")) %>%
-  # Doklejamy datę inicjalizacji po ID
-  left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id"))
-
-# 3. Tworzymy zbiór roboczy dla transakcji rekurencyjnych (testowy)
-testowa_rekurencyjne <- proba_testowa %>%
-  filter(recurringaction %in% c("AUTO", "MANUAL")) %>%
-  # Tu też doklejamy info o inicjalizacji (korzystając z info z bazy uczącej)
-  left_join(inicjalizujace_info, by = c("initialtransaction_id" = "id"))
-
-# 4. Sprawdzenie, czy mamy dane (powinno być mniej wierszy niż w pełnym zbiorze)
-nrow(uczaca_rekurencyjne)
-```
-
-
 ## Inżynieria cech czasowych
 
 W celu uwzględnienia cykliczności zachowań płatniczych oraz specyfiki systemów bankowych, dokonano dekompozycji zmiennej czasowej `createtime`. Na jej podstawie wyznaczono godzinę oraz dzień tygodnia transakcji, zachowując ich chronologiczny porządek. Dodatkowo wprowadzono zmienne binarne identyfikujące transakcje weekendowe oraz te realizowane w godzinach nocnych (00:00–05:00), które są szczególnie narażone na niepowodzenie ze względu na potencjalne przerwy techniczne po stronie wystawców kart.
@@ -492,7 +457,7 @@ uczaca_rekurencyjne <- dodaj_cechy_czasowe(uczaca_rekurencyjne)
 testowa_rekurencyjne <- dodaj_cechy_czasowe(testowa_rekurencyjne)
 
 # Sprawdzenie, czy kolumny się pojawiły (powinno wypisać nazwy)
-colnames(uczaca_rekurencyjne_polaczone)
+colnames(uczaca_rekurencyjne)
 ```
 
 ```{r wizualizacja_czasowa, echo = F, fig.height= 3.5, fig.align='center'}
@@ -556,10 +521,10 @@ Połączenie każdej transakcję rekurencyjną z odpowiadającą jej transakcją
 ```{r wiek_karty}
 # Obliczamy różnicę w dniach
 uczaca_rekurencyjne <- uczaca_rekurencyjne %>%
-  mutate(wiek_karty_dni = as.numeric(difftime(createtime, init_time, units = "days")))
+  mutate(wiek_karty_dni = as.numeric(difftime(createtime, time_init, units = "days")))
 
 testowa_rekurencyjne <- testowa_rekurencyjne %>%
-  mutate(wiek_karty_dni = as.numeric(difftime(createtime, init_time, units = "days")))
+  mutate(wiek_karty_dni = as.numeric(difftime(createtime, time_init, units = "days")))
 ```
 
 ```{r wiek_karty_rozklad, echo=F, fig.align='center', fig.height=4}
