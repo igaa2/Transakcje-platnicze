@@ -254,6 +254,8 @@ napraw_strukture <- function(df) {
 }
 ```
 
+Zmienne `expirymonth` oraz `expiryyear` pozostawiono jako liczby całkowite (`integer`). Decyzja ta podyktowana jest naturą algorytmów drzewiastych, które lepiej radzą sobie z zachowaniem porządku chronologicznego na zmiennych liczbowych niż na nieuporządkowanych faktorach.
+
 ```{r naprawianie_struktury_zbiorow}
 proba_uczaca <- napraw_strukture(proba_uczaca)
 proba_testowa  <- napraw_strukture(proba_testowa)
