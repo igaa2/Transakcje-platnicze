@@ -1272,13 +1272,10 @@ Procedura wyznaczania statusu dla zbioru testowego przebiegała według następu
 
 Kompletne wyniki predykcji zapisano w obiekcie predykcje_testowa w formacie .RData, zachowując integralność wymiarową z dostarczonym szablonem.
 
-```{r}
-## --- FINALNA PREDYKCJA I ZAPIS WYNIKÓW ---
+```{r finalna_predykcja}
+# Douczanie modeli na pełnych danych
 
-# A. DOUCZANIE MODELI NA PEŁNYCH DANYCH (TRENING + WALIDACJA)
-
-# 1. Model REGRESJI (Amount)
-# Pobieramy optymalne CP z modelu przyciętego
+## Model regresji (Amount)
 finalne_cp_reg <- drzewo_reg_2_przyciete$cptable[nrow(drzewo_reg_2_przyciete$cptable), "CP"]
 
 model_reg_final <- rpart(amount ~ ., 
@@ -1286,52 +1283,47 @@ model_reg_final <- rpart(amount ~ .,
                          method = "anova", 
                          control = rpart.control(cp = finalne_cp_reg))
 
-# 2. Model KLASYFIKACJI (Status)
-# Używamy parametrów wyznaczonych w sekcji klasyfikacji: cp_optymalne i limit_obserwacji
+## Model klasyfikacji (Status)
+
 model_klas_final <- rpart(status_bin ~ ., 
                           data = rbind(dane_treningowe, dane_walidacyjne), 
                           method = "class", 
                           control = rpart.control(cp = cp_optymalne, 
                                                   minbucket = limit_obserwacji))
 
-# B. PRZYGOTOWANIE SZABLONU WYNIKÓW
+# Dodanie kolumnn z predykcjami
 predykcje_testowa <- proba_testowa
 predykcje_testowa$amount <- NA
 predykcje_testowa$status <- NA
 
-# C. PREDYKCJA DLA REKURENCYJNYCH (AUTO/MANUAL)
-# Wykorzystujemy zbiór 'testowa_rekurencyjne', bo ma wyliczone cechy (tenure, expiry itp.)
+# Predykcja dla rekurencyjnych
 indeksy_rek <- predykcje_testowa$id %in% testowa_rekurencyjne$id
 
 if(any(indeksy_rek)) {
-  # Ważne: musimy mieć pewność, że kolejność wierszy pasuje. 
-  # Filtrujemy testowa_rekurencyjne tak, aby pasowała do indeksów w pętli, 
-  # ale tutaj rpart poradzi sobie po ID jeśli użyjemy predict na całym podzbiorze.
   
-  # 1. Predykcja kwoty (Regresja)
+  # Predykcja kwoty (Regresja)
   predykcje_testowa$amount[indeksy_rek] <- predict(model_reg_final, newdata = testowa_rekurencyjne)
   
-  # 2. Predykcja statusu (Klasyfikacja)
+  # Predykcja statusu (Klasyfikacja)
   preds_klasa <- predict(model_klas_final, newdata = testowa_rekurencyjne, type = "class")
   predykcje_testowa$status[indeksy_rek] <- as.character(preds_klasa)
 }
 
-# D. PREDYKCJA DLA INICJUJĄCYCH (INIT)
+# Predykcja dla inicjujących
 indeksy_init <- predykcje_testowa$id %in% testowa_init$id
 
-# Wyznaczamy bezpieczną medianę z transakcji INIT (zbiór uczący)
+# Wyznaczenie bezpiecznej mediany z transakcji INIT (zbiór uczący)
 vals_init <- try(uczaca_init$amount, silent = TRUE)
 mediana_init <- if(is.numeric(vals_init) && length(vals_init) > 0) median(vals_init, na.rm=T) else median(dane_treningowe$amount, na.rm=T)
 
 if(any(indeksy_init)) {
-  # 1. Amount = Mediana
+  # Amount = Mediana
   predykcje_testowa$amount[indeksy_init] <- mediana_init
   
-  # 2. Status = Zawsze "sukces" (zgodnie z logiką biznesową)
+  # Status = "sukces" (zgodnie z definicją)
   predykcje_testowa$status[indeksy_init] <- "sukces"
 }
 
-# E. ŁATANIE DZIUR (Dla transakcji "sierot" lub błędów)
 # Jeśli brakuje kwoty -> Mediana
 braki_amount <- is.na(predykcje_testowa$amount)
 if(sum(braki_amount) > 0) {
@@ -1349,13 +1341,13 @@ if(sum(braki_status) > 0) {
 # F. ZAPIS
 if(nrow(predykcje_testowa) == 15185 && sum(is.na(predykcje_testowa$amount)) == 0 && sum(is.na(predykcje_testowa$status)) == 0) {
   save(predykcje_testowa, file = "predykcje_testowa.RData")
-  cat("SUKCES! Plik 'predykcje_testowa.RData' (15185 wierszy) zapisany poprawnie.\n")
+  cat("Plik 'predykcje_testowa.RData' zapisany poprawnie.\n")
   
   # Podgląd struktury wyników
   print(table(predykcje_testowa$status))
   print(summary(predykcje_testowa$amount))
 } else {
-  stop("BŁĄD: Złe wymiary lub puste pola w pliku wynikowym!")
+  stop("BŁĄD: Złe wymiary lub puste pola w pliku wynikowym.")
 }
 ```
 
