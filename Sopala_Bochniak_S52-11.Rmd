@@ -426,29 +426,31 @@ uczaca_rekurencyjne <- transformuj_status(uczaca_rekurencyjne)
 W celu uwzględnienia cykliczności zachowań płatniczych oraz specyfiki systemów bankowych, dokonano dekompozycji zmiennej czasowej `createtime`. Na jej podstawie wyznaczono godzinę oraz dzień tygodnia transakcji, zachowując ich chronologiczny porządek. Dodatkowo wprowadzono zmienne binarne identyfikujące transakcje weekendowe oraz te realizowane w godzinach nocnych (00:00–05:00), które są szczególnie narażone na niepowodzenie ze względu na potencjalne przerwy techniczne po stronie wystawców kart.
 
 
-```{r cechy_czasowe, echo= F}
+```{r f_dodaj_cechy_czasowe, include = F}
 # Funkcja do generowania cech czasowych
 dodaj_cechy_czasowe <- function(df) {
   df %>%
     mutate(
-      godzina = as.numeric(format(createtime, "%H")),
+      hour = as.numeric(format(createtime, "%H")),
       
       # Zamiana 1-7 na słowne etykiety
-      dzien_tygodnia = factor(format(createtime, "%u"),
-                              levels = c("1", "2", "3", "4", "5", "6", "7"),
-                              labels = c("Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz")),
+      week_day = factor(format(createtime, "%u"),
+                        levels = c("1", "2", "3", "4", "5", "6", "7"),
+                        labels = c("Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz")),
       
-      # Flaga weekendu
-      czesc_tygodnia = ifelse(dzien_tygodnia %in% c("Sob", "Ndz"), "Weekend", "Tydzień"),
-      czesc_tygodnia = as.factor(czesc_tygodnia),
+      # Oznaczenie weekendu
+      week_part = ifelse(week_day %in% c("Sob", "Ndz"), "Weekend", "Dzień roboczy"),
+      week_part = as.factor(week_part),
       
-      # Prosta definicja pory dnia (Noc = 00:00 - 05:59)
-      pora_dnia = ifelse(godzina <= 5, "Noc", "Dzień"),
-      pora_dnia = as.factor(pora_dnia)
+      # Definicja pory dnia (Noc = 00:00 - 05:59)
+      day_part = ifelse(hour <= 5, "Noc", "Dzień"),
+      day_part = as.factor(day_part)
     )
 }
+```
 
 
+```{r cechy_czasowe, echo = F}
 # Zastosowanie funkcji do obu zbiorów
 uczaca_rekurencyjne <- dodaj_cechy_czasowe(uczaca_rekurencyjne)
 
@@ -502,31 +504,31 @@ rysuj_kolo_fiolet <- function(dane_uczace, dane_testowe, nazwa_zmiennej, tytul) 
 
 # --- GENEROWANIE WYKRESÓW ---
 
-wykres_pora <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "pora_dnia", "Pora Dnia")
-wykres_weekend <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "czesc_tygodnia", "Weekend vs Tydzień")
+wykres_pora <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "day_part", "Pora Dnia")
+wykres_weekend <- rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "week_part", "Weekend vs Dzień tygodnia")
 
 wykres_pora + wykres_weekend
 
-rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "dzien_tygodnia", "Dni tygodnia")
+rysuj_kolo_fiolet(uczaca_rekurencyjne, testowa_rekurencyjne, "week_day", "Dni tygodnia")
 ```
 
 ## Charakterystyka karty
 
 ### Wiek karty w systemie
 
-Połączenie każdej transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą pozwoliło na wygenerowanie nowej zmiennej: `wiek_karty_dni`. Zmienna ta reprezentuje liczbę dni, jaka upłynęła od momentu rejestracji karty (`time_init`) do momentu bieżącej transakcji rekurencyjnej (`createtime`), dzięki czemu określono staż danej karty w systemie. Zmienna ta ma na celu sprawdzenie hipotezy, czy karty o dłuższej historii subskrypcyjnej rzadziej generują błędy płatności.
+Połączenie każdej transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą pozwoliło na wygenerowanie nowej zmiennej: `days_since_init`. Zmienna ta reprezentuje liczbę dni, jaka upłynęła od momentu rejestracji karty (`time_init`) do momentu bieżącej transakcji rekurencyjnej (`createtime`), dzięki czemu określono staż danej karty w systemie. Zmienna ta ma na celu sprawdzenie hipotezy, czy karty o dłuższej historii subskrypcyjnej rzadziej generują błędy płatności.
 
 ```{r wiek_karty}
 # Obliczamy różnicę w dniach
 uczaca_rekurencyjne <- uczaca_rekurencyjne %>%
-  mutate(wiek_karty_dni = as.numeric(difftime(createtime, time_init, units = "days")))
+  mutate(days_since_init = as.numeric(difftime(createtime, time_init, units = "days")))
 
 testowa_rekurencyjne <- testowa_rekurencyjne %>%
-  mutate(wiek_karty_dni = as.numeric(difftime(createtime, time_init, units = "days")))
+  mutate(days_since_init = as.numeric(difftime(createtime, time_init, units = "days")))
 ```
 
 ```{r wiek_karty_rozklad, echo=F, fig.align='center', fig.height=4}
-hist(uczaca_rekurencyjne$wiek_karty_dni, 
+hist(uczaca_rekurencyjne$days_since_init, 
      breaks = 15,
      col = "#8E24AA", 
      border = "white",
@@ -534,7 +536,7 @@ hist(uczaca_rekurencyjne$wiek_karty_dni,
      xlab = "Wiek karty (w dniach)", 
      ylab = "Liczba transakcji")
 
-summary(uczaca_rekurencyjne$wiek_karty_dni)
+summary(uczaca_rekurencyjne$days_since_init)
 ```
 
 
@@ -542,35 +544,38 @@ summary(uczaca_rekurencyjne$wiek_karty_dni)
 
 Wyznaczono liczbę miesięcy pozostałych do wygaśnięcia karty oraz stworzono zmienną dychotomiczną identyfikującą transakcje dokonane w roku utraty ważności. Informacja ta jest kluczowa dla modelu klasyfikacji, gdyż zbliżający się termin ważności karty może być przyczyną odrzuceń płatności przez wystawcę.
 
-```{r waznosc_karty, echo=FALSE}
+```{r f_oblicz_waznosc_karty, include = F}
 # Funkcja pomocnicza dla obu zbiorów
 oblicz_waznosc <- function(df) {
   df %>%
     mutate(
       # Zakładamy, że karta wygasa z końcem podanego miesiąca
-      data_wygasniecia = as.Date(paste(expiryyear, expirymonth, "01", sep = "-")),
-      miesiace_do_wygasniecia = as.numeric(difftime(data_wygasniecia, createtime, units = "days")) / 30.44,
-      czy_wygasa_w_tym_roku = ifelse(expiryyear == format(createtime, "%Y"), "Tak", "Nie"),
-      czy_wygasa_w_tym_roku = as.factor(czy_wygasa_w_tym_roku)
+      expirydate = as.Date(paste(expiryyear, expirymonth, "01", sep = "-")),
+      months_to_expire = as.numeric(difftime(expirydate, createtime, units = "days")) / 30.44,
+      expires_this_year = ifelse(expiryyear == format(createtime, "%Y"), "Tak", "Nie"),
+      expires_this_year = as.factor(expires_this_year)
     )
 }
+```
 
+
+```{r waznosc_karty, echo = F}
 uczaca_rekurencyjne <- oblicz_waznosc(uczaca_rekurencyjne)
 testowa_rekurencyjne <- oblicz_waznosc(testowa_rekurencyjne)
 ```
 
 ```{r sprawdzenie_min_waznosci_karty, echo=FALSE}
 # Sprawdzenie statystyk (czy nie ma wartości ujemnych)
-cat("Minimum liczby miesięcy ważności karty na zbiorze uczącym:", min(uczaca_rekurencyjne$miesiace_do_wygasniecia))
-cat("Minimum liczby miesięcy ważności karty na zbiorze testowym:", min(testowa_rekurencyjne$miesiace_do_wygasniecia))
+cat("Minimum liczby miesięcy ważności karty na zbiorze uczącym:", min(uczaca_rekurencyjne$months_to_expire))
+cat("Minimum liczby miesięcy ważności karty na zbiorze testowym:", min(testowa_rekurencyjne$months_to_expire))
 ```
 
-Analiza zmiennej `miesiace_do_wygasniecia` wykazała obecność wartości ujemnych. Zjawisko to interpretowane jest jako próba realizacji transakcji przy użyciu karty, której termin ważności upłynął przed datą obciążenia.
+Analiza zmiennej `months_to_expire` wykazała obecność wartości ujemnych. Zjawisko to interpretowane jest jako próba realizacji transakcji przy użyciu karty, której termin ważności upłynął przed datą obciążenia.
 
 ```{r ile_przeterminowanych_kart, echo = F}
 # Liczymy, ile jest takich przypadków w obu zbiorach
-n_ujemne_uczaca <- sum(uczaca_rekurencyjne$miesiace_do_wygasniecia < 0)
-n_ujemne_testowa <- sum(testowa_rekurencyjne$miesiace_do_wygasniecia < 0)
+n_ujemne_uczaca <- sum(uczaca_rekurencyjne$months_to_expire < 0)
+n_ujemne_testowa <- sum(testowa_rekurencyjne$months_to_expire < 0)
 
 cat(sprintf("Liczba kart przeterminowanych w zbiorze uczącym: %d (%.2f%%)\n", 
             n_ujemne_uczaca, 
@@ -588,14 +593,14 @@ Karty przeterminowane stanowią niewielki odsetek analizowanych danych.
 ```{r waznosc_karty_wizualizacje, echo=F, fig.align='center', fig.width=10, fig.height=3}
 dane_wygasanie <- bind_rows(
   uczaca_rekurencyjne %>% 
-    select(miesiace_do_wygasniecia, czy_wygasa_w_tym_roku) %>% 
+    select(months_to_expire, expires_this_year) %>% 
     mutate(Zbior = "Uczący"),
   testowa_rekurencyjne %>% 
-    select(miesiace_do_wygasniecia, czy_wygasa_w_tym_roku) %>% 
+    select(months_to_expire, expires_this_year) %>% 
     mutate(Zbior = "Testowy")
 )
 
-p1 <- ggplot(dane_wygasanie, aes(x = miesiace_do_wygasniecia, fill = Zbior)) +
+p1 <- ggplot(dane_wygasanie, aes(x = months_to_expire, fill = Zbior)) +
   geom_histogram(binwidth = 12, color = "white", alpha = 0.8) +
   facet_wrap(~Zbior, scales = "free_y") +
   scale_fill_manual(values = c("Uczący" = "#8E24AA", "Testowy" = "#404080")) + 
@@ -605,7 +610,7 @@ p1 <- ggplot(dane_wygasanie, aes(x = miesiace_do_wygasniecia, fill = Zbior)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-p2 <- ggplot(dane_wygasanie, aes(x = czy_wygasa_w_tym_roku, fill = Zbior)) +
+p2 <- ggplot(dane_wygasanie, aes(x = expires_this_year, fill = Zbior)) +
   geom_bar(position = "dodge",alpha = 0.8) +
   scale_fill_manual(values = c("Uczący" = "#8E24AA", "Testowy" = "#404080")) +
   labs(title = "Karty zagrożone wygaśnięciem",
@@ -622,18 +627,18 @@ Dokonano segmentacji transakcji na krajowe oraz zagraniczne na podstawie kodu kr
 
 ```{r pochodzenie_karty, echo=FALSE}
 uczaca_rekurencyjne <- uczaca_rekurencyjne %>%
-  mutate(pochodzenie_karty = ifelse(countrycode == "PL", "Krajowa", "Zagraniczna"),
-         pochodzenie_karty = as.factor(pochodzenie_karty))
+  mutate(card_origin = ifelse(countrycode == "PL", "Krajowa", "Zagraniczna"),
+         card_origin = as.factor(card_origin))
 
 testowa_rekurencyjne <- testowa_rekurencyjne %>%
-  mutate(pochodzenie_karty = ifelse(countrycode == "PL", "Krajowa", "Zagraniczna"),
-         pochodzenie_karty = as.factor(pochodzenie_karty))
+  mutate(card_origin = ifelse(countrycode == "PL", "Krajowa", "Zagraniczna"),
+         card_origin = as.factor(card_origin))
 ```
 
 ```{r rozklad_pochodzenia_karty, echo =F}
 # Tabela z liczebnością i procentami
 statystyki_pochodzenia <- uczaca_rekurencyjne %>%
-  count(pochodzenie_karty) %>%                # Liczymy wystąpienia
+  count(card_origin) %>%                # Liczymy wystąpienia
   mutate(
     Udzial_proc = round(n / sum(n) * 100, 2)  # Obliczamy procent
   ) %>%
