@@ -251,9 +251,7 @@ sort(unique(proba_uczaca$description))
 
 ## Weryfikacja i korekta typów zmiennych
 
-**XXX tu wywalic browseragent**
-;
-Po wstępnym oczyszczeniu zbioru z niestandardowych braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
+Po wstępnym oczyszczeniu zbioru z braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
 
 <details>
 
@@ -268,20 +266,15 @@ str(proba_uczaca)
 ::: {style="height: 10px;"}
 :::
 
-Szczególną uwagę poświęcono zmiennym tekstowym `browseragent` oraz `description`. W modelach nieparametrycznych zmienne kategoryczne o bardzo dużej liczbie unikalnych poziomów nie są wskazane.
+Szczególną uwagę poświęcono zmiennej tekstowej `description`. W modelach nieparametrycznych zmienne kategoryczne o bardzo dużej liczbie unikalnych poziomów nie są bowiem wskazane.
 
-Sprawdzono liczbę unikalnych wariantów dla obu podejrzanych zmiennych:
+Sprawdzono liczbę unikalnych wariantów dla podejrzanej zmiennej:
 
-```{r ile_unikalnych_podejrzane_zmienne, echo = F}
-cat("Liczba wariantów w zmiennej browseragent:", length(unique(proba_uczaca$browseragent)))
+```{r ile_unikalnych_podejrzana_zmienna, echo = F}
 cat("Liczba wariantów w zmiennej description:", length(unique(proba_uczaca$description)))
 ```
 
-Analiza wykazała istotną różnicę:
-
--   Zmienna `browseragent` posiada ponad 2000 unikalnych wartości. Ze względu na tak wysoki poziom zaszumienia, zmienna ta zostanie pominięta w dalszej konwersji na typ kategoryczny.
-
--   Zmienna `description`, wbrew początkowym założeniom, przyjmuje jedynie kilkanaście powtarzalnych wartości. Jest to informacja potencjalnie użyteczna dla modelu, dlatego zostanie ona uwzględniona w dalszej analizie jako zmienna kategoryczna (`factor`).
+Analiza wykazała, że zmienna `description`, wbrew początkowym założeniom, przyjmuje jedynie kilkanaście powtarzalnych wartości. Jest to informacja potencjalnie użyteczna dla modelu, dlatego zostanie ona uwzględniona w dalszej analizie jako zmienna kategoryczna (`factor`).
 
 ```{r f_napraw_strukture, include = F}
 # Funkcja naprawia strukturę danych - konwersja na odpowiednie typy zmiennych
@@ -379,7 +372,7 @@ cat("Liczba transakcji rekurencyjnych w próbie testowej:", nrow(testowa_rekuren
 
 ## Rekonstrukcja relacji między transakcjami
 
-Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą. 
+Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą, aby uzyskać dla niej dodatkowe informacje. 
 
 ```{r f_dolacz_informacje_o_init, include = F}
 # Funkcja łącząca transakcje rekurencyjne z informacjami o inicjalizujących
@@ -396,9 +389,11 @@ testowa_rekurencyjne <- dolacz_informacje_o_init(testowa_rekurencyjne, testowa_i
 ```
 
 
-## Definicja zmiennych celu
+## Definicja zmiennej celu
 
-Klasyfikacja: Przekształcenie zmiennej status na postać binarną (Sukces/Porażka) zgodnie z wymogami projektu (ustawienie "Porażki" jako poziomu pozytywnego do F-miary).
+Dokonano transformacji pierwotnej zmiennej celu (`status`). Zmienna ta została poddana dychotomizacji: wszystkie transakcje o statusie innym niż `completed successfully` zaklasyfikowano jako `porażka`, natomiast pozostałe jako `sukces`.
+
+Kluczowym elementem inżynierii cech było zdefiniowanie porażki jako klasy wyróżnionej (pozytywnej). Jest to podyktowane celem projektu, którym jest identyfikacja transakcji zagrożonych odrzuceniem. Takie ustawienie poziomów czynnika pozwala na bezpośrednią interpretację metryk jakości modelu, w szczególności F-miary.
 
 ```{r f_transformuj_status, include = F}
 # Funkcja transformująca zmienną celu "status"
@@ -418,8 +413,6 @@ transformuj_status <- function(df) {
 ```{r transformacja_status}
 uczaca_rekurencyjne <- transformuj_status(uczaca_rekurencyjne)
 ```
-
-**XXX Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna). NIE JESTEM PEWNA CZY ROBIĆ BO PODOBNO DRZEWA NIE WYMAGAJĄ **
 
 
 ## Inżynieria cech czasowych
