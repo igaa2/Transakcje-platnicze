@@ -906,70 +906,238 @@ cat("Liczba obserwacji w zbiorze walidacyjnym 99%:", nrow(dane_wal_reg_99), "\n"
 ```
 
 
-### Model: Drzewo Regresyjne (rpart method="anova")
-- budowa drzewa
-- sprawdzenie zmiennych ważności (variable importance).
+### Budowa drzewa regresyjnego
 
-```{r model_reg_1}
+W pierwszej kolejności zbudowano model na pełnym zbiorze danych (`dane_reg_full`), aby zweryfikować, w jaki sposób algorytm radzi sobie z wartościami ekstremalnymi.
+
+```{r model_reg_1, echo = F}
 drzewo_reg_1 <- rpart(
   formula = amount ~.,
-  data = dane_treningowe,
+  data = dane_reg_full,
   method = "anova"
 )
 ```
 
 
-#### Wizualizacja: rpart.plot.
-Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
-Ważność zmiennych: Czy te same zmienne są ważne dla kwoty, co dla statusu?
+Poniższy wykres prezentuje strukturę drzewa wygenerowanego na pełnych danych.
 
-
-```{r}
+```{r wykres_drzewo_amount_1, echo = F, fig.align='center', fig.width=15, fig.height=9}
 rpart.plot(drzewo_reg_1, 
-           branch.type = 5, 
-           type = 2,           # type=2 rysuje opisy pod węzłami, co jest czytelniejsze
-           extra = 1,          # pokazuje liczbę obserwacji
-           under = TRUE, 
-           faclen = 3)         # faclen=3 skróci nazwy krajów/poziomów do 3 liter
+           type = 2,
+           extra = 1,
+           under = TRUE,
+           tweak = 0.95,
+           main = "Drzewo regresyjne - kwota transakcji",
+           box.palette = "Purples")
+```
+
+<details>
+  <summary> Ważność zmiennych w drzewie na pełnych danych </summary>
+  
+```{r waznosc_zmiennych_reg_1, echo=FALSE}
+cbind(drzewo_reg_1$variable.importance)
+```
+
+</details>
+
+
+Szczególną uwagę zwrócono na rozmieszczenie transakcji o najwyższych kwotach (powyżej 99. centyla). Analiza węzłów końcowych wykazała, że wartości ekstremalne nie tworzą jednorodnej grupy, lecz są rozproszone w wielu liściach. Poniższa tabela przedstawia liczbę transakcji ekstremalnych w poszczególnych węzłach końcowych drzewa:
+
+```{r ile_wart_ekstr_w_wezle, echo = F}
+cat("Ile w każdym węźle jest wartości ekstremalnych?")
+tapply(
+  X = dane_reg_full$amount > quantile(dane_reg_full$amount, 0.99),
+  INDEX = drzewo_reg_1$where,
+  FUN = sum
+)
+```
+
+Z uwagi na fakt, że obecność pojedynczych, bardzo wysokich kwot zaburza średnią w liściach i utrudnia predykcję dla typowych transakcji, podjęto decyzję o budowie docelowego modelu na zbiorze ograniczonym do 99% populacji (`dane_reg_99`).
+
+**Budowa modelu docelowego (bez outlierów)**
+
+Zbudowano nowe drzewo regresyjne, wykluczając 1% najwyższych kwot. Model ten ma na celu precyzyjne odwzorowanie mechanizmów rządzących typowymi transakcjami.
+
+```{r model_reg_2, echo = F}
+drzewo_reg_2 <- rpart(
+  formula = amount ~.,
+  data = dane_reg_99,
+  method = "anova"
+)
 ```
 
 
-### Strojenie:
-- Ponownie szukamy optymalnego cp (Complexity Parameter) minimalizującego błąd.
-
-#### Wizualizacja: rpart.plot.
-Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
-Ważność zmiennych
-
-### Ewaluacja:
-- Błąd SSR (suma kwadratów reszt) lub RMSE na zbiorze walidacyjnym.
-- Miarą błędu jest SSR (Suma Kwadratów Reszt) na zbiorze walidacyjnym.
-
-
-Zgodnie z przyjętą strategią modelowania dla typowych obserwacji, ewaluacja modelu (dobór parametru CP oraz obliczenie błędu SSR) została przeprowadzona na zbiorze walidacyjnym ograniczonym do zakresu treningowego (kwoty < `r round(prog_99, 2)` PLN). W finalnym zbiorze testowym wystąpią wartości wyższe. Dla nich model drzewiasty przyjmie predykcję równą maksymalnej wartości w liściu (niedoszacowanie), co jest naturalną cechą drzew regresyjnych, które nie dokonują ekstrapolacji poza zakres danych uczących.
+```{r wykres_drzewo_amount_2, echo = F, fig.align='center', fig.width=15, fig.height=7}
+rpart.plot(drzewo_reg_2, 
+           type = 2,
+           extra = 1,
+           under = TRUE,
+           tweak = 0.95,
+           main = "Drzewo regresyjne - kwota transakcji",
+           box.palette = "Purples")
+```
 
 
-## Podejście wielomodelowe
+Struktura drzewa wskazuje, że kluczowymi czynnikami różnicującymi kwotę transakcji są: typ listy (`listtype`), kategoria sklepu (`mccname`) oraz metoda połączenia (`acquirerconnectionmethod`).
 
-<!-- Skoro masz wymóg "wyboru najlepszego modelu", warto zbudować drugi, konkurencyjny model dla obu zadań, aby mieć co porównywać. -->
+```{r proces_budowy_drzewa_reg_2, include = F}
+# Przestudiować proces budowy drzewa
+drzewo_reg_2
 
-<!-- Opcja A (Prosta): Las Losowy (randomForest). Jest to naturalne rozwinięcie drzew. Zazwyczaj daje lepsze wyniki, ale jest "czarną skrzynką" (trudniej narysować ładny wykres). -->
+rpart.rules(drzewo_reg_2, style = "tallw")
 
-<!-- Opcja B (Alternatywna): Regresja Logistyczna (dla statusu) i Liniowa (dla kwoty). To pokaże, czy złożone metody nieparametryczne w ogóle dają przewagę nad prostą statystyką. -->
+summary(drzewo_reg_2)
+```
 
-Budowa modelu:
-- Użycie randomForest (lub bagging z adabag jak na zajęciach) dla zmiennej status.
-- Ustalenie liczby drzew (wykres błędu w zależności od liczby drzew).
+<details>
+  <summary> Ważność zmiennych w drzewie na 99% populacji </summary>
 
-Interpretacja (Specyficzna dla lasów)
-Tutaj nie narysujesz jednego drzewa, ALE musisz pokazać wykres ważności zmiennych (varImpPlot lub importance).
+```{r waznosc_zmiennych_reg_2, echo=FALSE}
+cbind(drzewo_reg_2$variable.importance)
+```
 
-Pytanie do raportu: Czy Las Losowy wskazuje te same ważne zmienne co pojedyncze drzewo, czy znalazł coś nowego?
+</details>
 
-Ewaluacja
-- F-miara na zbiorze walidacyjnym.
+Ranking ważności zmiennych potwierdza dominującą rolę typu listy (`listtype`) oraz kategorii MCC (`mccname`) oraz metody połączenia (`acquirerconnectionmethod`). Istotnym czynnikiem okazała się również godzina transakcji (`hour`), co sugeruje występowanie dobowych wzorców zakupowych.
 
-Porównanie wyniku z pojedynczym drzewem (czy warto było komplikować model dla 1% zysku?).
+### Strojenie
+
+Aby uniknąć przeuczenia (overfitting), przeprowadzono procedurę przycinania drzewa. Wykorzystano metodę sprawdzania krzyżowego (cross-validation) do znalezienia optymalnego parametru złożoności `cp`.
+
+```{r szukanie_optymalnego_cp, echo = F}
+# Ustalić optymalną wielkość drzewa na podstawie sprawdzania krzyżowego
+drzewo_reg_2_duze <- rpart(
+  formula = amount ~.,  
+  data = dane_reg_99,
+  method = "anova",
+  control = rpart.control(cp = 0.001)
+)
+```
+
+```{r przycinanie_drzewa, echo = F}
+# Funkcja przycinająca drzewo według reguły 1 błędu standardowego
+przycinanie <- function(drzewo) {
+  bledy <- drzewo$cptable
+  tmp1 <- which.min(bledy[, "xerror"])  # min błąd w sprawdzaniu krzyżowym
+  tmp2 <- sum(bledy[tmp1, c("xerror", "xstd")]) # min błąd + odchylenie standardowe
+  optymalny <- which(bledy[, "xerror"] < tmp2)[1] # nr optymalnego drzewa
+  
+  prune(drzewo, cp = bledy[optymalny, "CP"]) # przycięcie drzewa
+}
+```
+
+**Finalna struktura modelu**
+
+Po przycięciu uzyskano stabilny model, który generalizuje wiedzę o kwotach transakcji. Poniższy wykres prezentuje ostateczną postać drzewa regresyjnego.
+
+```{r przyciecie_drzewa_reg, echo = F}
+drzewo_reg_2_przyciete <- przycinanie(drzewo_reg_2_duze)
+```
+
+
+```{r wykres_drzewo_amount_2_przyciete, echo = F, fig.align='center', fig.width=15, fig.height=10}
+rpart.plot(drzewo_reg_2_przyciete, 
+           type = 2,
+           extra = 1,
+           under = TRUE,
+           tweak = 1.2,
+           main = "Drzewo regresyjne - kwota transakcji",
+           box.palette = "Purples")
+```
+
+Ranking ważności zmiennych potwierdza dominującą rolę typu listy (`listtype`) oraz kategorii MCC (`mccname`). Istotnym czynnikiem okazała się również godzina transakcji (`hour`), co sugeruje występowanie dobowych wzorców zakupowych.
+
+<details>
+  <summary> Ważność zmiennych w drzewie przyciętym </summary>
+
+```{r waznosc_zmiennych_przyciete, echo=FALSE}
+cbind(drzewo_reg_2_przyciete$variable.importance)
+```
+
+</details>
+  
+
+
+
+### Ewaluacja modeli
+
+Ocenę jakości predykcji przeprowadzono na niezależnych zbiorach walidacyjnych (`dane_wal_reg_full` oraz `dane_wal_reg_99`), ograniczonym do zakresu typowych transakcji. Pozwala to na rzetelne sprawdzenie błędu generalizacji modelu.
+
+
+```{r funkcja_dokladnosc_modeli, echo = F}
+# Funkcja do ewaluacji modeli regresyjnych
+ewaluacja_regresji <- function(model, dane, cel_nazwa = "amount") {
+  
+  # Wykonanie predykcji
+  predykcje <- predict(model, newdata = dane)
+  
+  # Pobranie rzeczywistych wartości
+  rzeczywiste <- dane[[cel_nazwa]]
+  
+  # Obliczenie metryk
+  mse <- mean((rzeczywiste - predykcje)^2)
+  rmse <- sqrt(mse)
+  r2 <- 1 - sum((rzeczywiste - predykcje)^2)/sum((rzeczywiste - mean(rzeczywiste))^2)
+  
+  # Zwrócenie wektora wyników (żeby móc zrobić tabelę porównawczą)
+  return(c(MSE = mse, RMSE = rmse, R2 = r2))
+}
+```
+
+
+
+```{r dokladnosc_modelu, echo = F}
+wyniki_1 <- ewaluacja_regresji(drzewo_reg_1, dane_wal_reg_full)
+wyniki_2 <- ewaluacja_regresji(drzewo_reg_2, dane_wal_reg_99)
+wyniki_3 <- ewaluacja_regresji(drzewo_reg_2_przyciete, dane_wal_reg_99)
+
+tabela_wynikow <- data.frame(
+  Model = c("1. Pełny (z outlierami)", 
+            "2. Bez outlierów (przed przycięciem)", 
+            "3. Bez outlierów (po przycięciu/optymalny)"),
+  MSE = c(wyniki_1["MSE"], wyniki_2["MSE"], wyniki_3["MSE"]),
+  RMSE = c(wyniki_1["RMSE"], wyniki_2["RMSE"], wyniki_3["RMSE"]),
+  R2 = c(wyniki_1["R2"], wyniki_2["R2"], wyniki_3["R2"])
+)
+
+knitr::kable(tabela_wynikow, caption = "Porównanie modeli regresyjnych")
+```
+
+
+Przeprowadzona analiza porównawcza wykazała kluczowy wpływ wartości ekstremalnych na jakość predykcji.
+
+1.  **Wpływ outlierów:** Model trenowany i testowany na pełnym zbiorze danych (Model 1) osiągnął najgorsze wyniki, z błędem RMSE na poziomie 114.54 PLN. Wysoka wartość błędu wynika z obecności pojedynczych transakcji o bardzo wysokich kwotach, które zaburzają proces uczenia i znacząco zawyżają średni błąd kwadratowy.
+
+2.  **Efekt oczyszczenia danych:** Ograniczenie zakresu analizy do 99% typowych transakcji (Model 2) spowodowało drastyczny spadek błędu predykcji. RMSE zmniejszyło się ponad dwukrotnie, do poziomu 50.28 PLN. Potwierdza to słuszność przyjętej strategii eliminacji wartości skrajnych w celu poprawy precyzji modelu dla dominującej większości klientów.
+
+3.  **Optymalizacja (Pruning):** Najlepsze parametry generalizacji osiągnął model po przycięciu (Model 3). Procedura doboru parametru złożoności (`cp`) pozwoliła nie tylko na uproszczenie struktury drzewa, ale również na poprawę wyników na zbiorze walidacyjnym. Współczynnik determinacji ($R^2$) wzrósł z poziomu 0.427 do 0.4658, a błąd RMSE spadł do 48.55 PLN.
+
+Finalny model (Model 3) wyjaśnia blisko 47% zmienności kwoty transakcji dla typowych operacji, myląc się średnio o około 48-49 zł. Wzrost $R^2$ przy jednoczesnym uproszczeniu drzewa świadczy o tym, że model przed przycięciem (Model 2) był lekko przeuczony (overfitted), a zastosowanie reguły 1-SE pozwoliło wyłonić najbardziej stabilne reguły decyzyjne.
+
+
+**XXX interpretację wyników modelu**
+
+<!-- ## Podejście wielomodelowe -->
+
+<!-- <!-- Skoro masz wymóg "wyboru najlepszego modelu", warto zbudować drugi, konkurencyjny model dla obu zadań, aby mieć co porównywać. --> 
+
+<!-- <!-- Opcja A (Prosta): Las Losowy (randomForest). Jest to naturalne rozwinięcie drzew. Zazwyczaj daje lepsze wyniki, ale jest "czarną skrzynką" (trudniej narysować ładny wykres). --> 
+
+<!-- <!-- Opcja B (Alternatywna): Regresja Logistyczna (dla statusu) i Liniowa (dla kwoty). To pokaże, czy złożone metody nieparametryczne w ogóle dają przewagę nad prostą statystyką. --> 
+
+<!-- Budowa modelu: -->
+<!-- - Użycie randomForest (lub bagging z adabag jak na zajęciach) dla zmiennej status. -->
+<!-- - Ustalenie liczby drzew (wykres błędu w zależności od liczby drzew). -->
+
+<!-- Interpretacja (Specyficzna dla lasów) -->
+<!-- Tutaj nie narysujesz jednego drzewa, ALE musisz pokazać wykres ważności zmiennych (varImpPlot lub importance). -->
+
+<!-- Pytanie do raportu: Czy Las Losowy wskazuje te same ważne zmienne co pojedyncze drzewo, czy znalazł coś nowego? -->
+
+<!-- Ewaluacja -->
+<!-- - F-miara na zbiorze walidacyjnym. -->
+
+<!-- Porównanie wyniku z pojedynczym drzewem (czy warto było komplikować model dla 1% zysku?). -->
 
 ## Ocena uzyskanych modeli
 
