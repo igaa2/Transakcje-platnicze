@@ -668,25 +668,20 @@ cbind(sort(sapply(uczaca_rekurencyjne, function(x) length(unique(x)))))
 Do dalszych etapów zakwalifikowano zmienne kategoryczne posiadające od 2 do 25 unikalnych poziomów oraz kluczowe zmienne numeryczne. Pozwoli to na budowę czytelnych drzew decyzyjnych, eliminując jednocześnie szum informacyjny.
 
 ```{r selekcja_zmiennych, echo=F}
-# --- SELEKCJA ZMIENNYCH ---
-
-# 1. Liczymy unikalne wartości dla każdej kolumny w głównym zbiorze
+# Liczymy unikalne wartości dla każdej kolumny w głównym zbiorze
 unique_counts <- sapply(uczaca_rekurencyjne, function(x) length(unique(x)))
 
-# 2. Wybieramy nazwy kolumn (próg 30 poziomów dla kategorycznych)
-# Wykluczamy zmienne z 1 poziomem (stałe) i te z > 30 (identyfikatory)
+# Wykluczamy zmienne z 1 poziomem (stałe) i te z > 25 poziomami
 selected_features <- names(unique_counts[unique_counts > 1 & unique_counts <= 25])
 
-# 3. Ręcznie dodajemy kluczowe zmienne ilościowe (które mają dużo poziomów, ale są OK dla drzew)
-# Dodajemy też zmienne celu: 'status_bin' dla klasyfikacji i 'amount' dla regresji
+# Ręcznie dodajemy kluczowe zmienne ilościowe (które mają dużą rozpiętość, ale są OK dla drzew)
 selected_features <- unique(c(selected_features, 
                               "amount", 
-                              "status_bin", 
                               "months_to_expire", 
                               "days_since_init"))
 
-# 4. Tworzymy oczyszczony zbiór bazowy do modelowania
-# Usuwamy też surową zmienną 'status' (zostawiamy tylko binarną)
+# Tworzymy oczyszczony zbiór bazowy do modelowania
+# Usuwamy też surową zmienną 'status' (zostawiamy tylko binarną) i description bo mało wnosi
 uczaca_final <- uczaca_rekurencyjne %>%
   select(all_of(selected_features)) %>%
   select(-any_of(c("status", "description")))
@@ -703,7 +698,7 @@ Zastosowano losowy dobór próby w następujących proporcjach:
 
 - Zbiór walidacyjny (30% obserwacji): służący do strojenia parametrów (np. przycinania drzewa), wyboru optymalnego modelu oraz oceny skuteczności predykcji (na podstawie F-miary i błędów).
 
-Aby zapewnić pełną powtarzalność uzyskanych wyników, ustawiono ziarno generatora liczb losowych na wartość odpowiadającą sumie numerów albumów autorów projektu. Przeprowadzono również weryfikację rozkładu zmiennej celu w obu podzbiorach, aby potwierdzić reprezentatywność wylosowanych prób.
+Aby zapewnić pełną powtarzalność uzyskanych wyników, ustawiono ziarno generatora liczb losowych na wartość odpowiadającą sumie numerów albumów autorek projektu. Przeprowadzono również weryfikację rozkładu zmiennej celu w obu podzbiorach, aby potwierdzić reprezentatywność wylosowanych prób.
 
 ```{r uczacy_walidacyjny, echo = F}
 # Ustawiamy ziarno losowości dla powtarzalności wyników (suma numerów albumów: 277939 + 277994)
@@ -849,10 +844,11 @@ W pierwszej kolejności zbudowano model na pełnym zbiorze danych (`dane_reg_ful
 ```{r model_reg_1, echo = F}
 drzewo_reg_1 <- rpart(
   formula = amount ~.,
-  data = dane_reg_full,
+  data = dane_treningowe,
   method = "anova"
 )
 ```
+
 
 #### Wizualizacja: rpart.plot.
 Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
@@ -909,6 +905,7 @@ rpart.plot(drzewo_reg_2,
            main = "Drzewo regresyjne - kwota transakcji",
            box.palette = "Purples")
 ```
+
 
 Struktura drzewa wskazuje, że kluczowymi czynnikami różnicującymi kwotę transakcji są: typ listy (listtype), kategoria sklepu (mccname) oraz pora dnia (hour).
 
