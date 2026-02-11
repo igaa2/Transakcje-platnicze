@@ -654,15 +654,40 @@ kable(statystyki_pochodzenia,
 
 ## Podział zbioru uczącego
 
-Masz uczaca_rekurencyjne (ok. 29 tys. wierszy) i proba_testowa (bez etykiet). Aby ocenić model i wybrać najlepsze parametry zanim wyślesz wyniki, musisz stworzyć własny poligon doświadczalny.
+W celu rzetelnej weryfikacji jakości budowanych modeli oraz uniknięcia zjawiska przeuczenia (overfitting), pierwotny zbiór danych (`uczaca_rekurencyjne`) został podzielony na dwie niezależne podpróby. Ponieważ udostępniony zbiór testowy (`proba_testowa`) nie posiada etykiet zmiennej celu, konieczne było wyodrębnienie własnego zestawu danych do bieżącej ewaluacji.
 
-Podzielić uczaca_rekurencyjne na:
+Zastosowano losowy dobór próby w następujących proporcjach:
 
-- Treningowy (np. 70%): Na tym budujemy drzewa.
+- Zbiór treningowy (70% obserwacji): wykorzystywany do konstrukcji i uczenia modeli.
 
-- Walidacyjny (np. 30%): Na tym sprawdzamy F-miarę i błędy.
+- Zbiór walidacyjny (30% obserwacji): służący do strojenia parametrów (np. przycinania drzewa), wyboru optymalnego modelu oraz oceny skuteczności predykcji (na podstawie F-miary i błędów).
 
-Aby ocenić, czy model jest dobry, czy przeuczony (overfitting).
+Aby zapewnić pełną powtarzalność uzyskanych wyników, ustawiono ziarno generatora liczb losowych na wartość odpowiadającą sumie numerów albumów autorów projektu. Przeprowadzono również weryfikację rozkładu zmiennej celu w obu podzbiorach, aby potwierdzić reprezentatywność wylosowanych prób.
+
+```{r uczacy_walidacyjny, echo = F}
+# Ustawiamy ziarno losowości dla powtarzalności wyników (suma numerów albumów: 277939 + 277994)
+set.seed(555933)
+
+train_index <- sample(
+  x = nrow(uczaca_rekurencyjne), 
+  size = 0.7 * nrow(uczaca_rekurencyjne), 
+  replace = FALSE
+)
+
+# Dzielimy zbiór
+dane_treningowe <- uczaca_rekurencyjne[train_index, ]
+dane_walidacyjne <- uczaca_rekurencyjne[-train_index, ]
+
+# Weryfikacja proporcji (komunikaty po polsku)
+cat("Proporcja 'sukces' w całym zbiorze:\n")
+print(prop.table(table(uczaca_rekurencyjne$status_bin)))
+
+cat("\nProporcja 'sukces' w zbiorze treningowym:\n")
+print(prop.table(table(dane_treningowe$status_bin)))
+
+cat("\nProporcja 'sukces' w zbiorze walidacyjnym:\n")
+print(prop.table(table(dane_walidacyjne$status_bin)))
+```
 
 
 ## Klasyfikacja (`status`)
@@ -695,6 +720,32 @@ Celem jest przewidzenie kwoty transakcji.
 
 Analiza zmiennej celu: 
 - Szybki rzut oka na rozkład amount. Jeśli jest bardzo skośny (dużo małych kwot, kilka gigantycznych), warto rozważyć logarytmizację log(amount), choć drzewa radzą sobie z tym lepiej niż regresja liniowa.
+
+```{r zmienna_amount}
+# --- 1. Eksploracja zmiennej celu (amount) ---
+
+# Statystyki opisowe
+summary(dane_treningowe$amount)
+
+# Histogram (zobaczymy czy jest prawostronnie skośny jak na zajęciach)
+hist(dane_treningowe$amount, 
+     breaks = 50, 
+     col = "#8E24AA", 
+     main = "Rozkład kwoty transakcji (przed czyszczeniem)")
+
+# Sprawdzamy "ogon" dystrybucji - 10 największych transakcji
+sort(dane_treningowe$amount, decreasing = TRUE)[1:10]
+
+# Sprawdźmy, jaki próg odcina 99% danych (żeby nie strzelać "na oko" w 10000)
+prog_99 <- quantile(dane_treningowe$amount, 0.99)
+cat("99% transakcji jest mniejszych niż:", round(prog_99, 2), "\n")
+
+# Ile tracimy, jeśli odetniemy ten 1%?
+ile_ekstremalnych <- sum(dane_treningowe$amount > prog_99)
+cat("Liczba wartości ekstremalnych do usunięcia:", ile_ekstremalnych, 
+    "(", round(mean(dane_treningowe$amount > prog_99) * 100, 2), "% zbioru )\n")
+```
+
 
 Model: Drzewo Regresyjne (rpart method="anova")
 - budowa drzewa
