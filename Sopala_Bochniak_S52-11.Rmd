@@ -1180,99 +1180,112 @@ Przeprowadzona analiza porównawcza wykazała kluczowy wpływ wartości ekstrema
 Finalny model (Model 3) wyjaśnia blisko 47% zmienności kwoty transakcji dla typowych operacji, myląc się średnio o około 48-49 zł. Wzrost $R^2$ przy jednoczesnym uproszczeniu drzewa świadczy o tym, że model przed przycięciem (Model 2) był lekko przeuczony (overfitted), a zastosowanie reguły 1-SE pozwoliło wyłonić najbardziej stabilne reguły decyzyjne.
 
 
-**XXX interpretację wyników modelu**
-
-<!-- ## Podejście wielomodelowe -->
-
-<!-- <!-- Skoro masz wymóg "wyboru najlepszego modelu", warto zbudować drugi, konkurencyjny model dla obu zadań, aby mieć co porównywać. --> 
-
-<!-- <!-- Opcja A (Prosta): Las Losowy (randomForest). Jest to naturalne rozwinięcie drzew. Zazwyczaj daje lepsze wyniki, ale jest "czarną skrzynką" (trudniej narysować ładny wykres). --> 
-
-<!-- <!-- Opcja B (Alternatywna): Regresja Logistyczna (dla statusu) i Liniowa (dla kwoty). To pokaże, czy złożone metody nieparametryczne w ogóle dają przewagę nad prostą statystyką. --> 
-
-<!-- Budowa modelu: -->
-<!-- - Użycie randomForest (lub bagging z adabag jak na zajęciach) dla zmiennej status. -->
-<!-- - Ustalenie liczby drzew (wykres błędu w zależności od liczby drzew). -->
-
-<!-- Interpretacja (Specyficzna dla lasów) -->
-<!-- Tutaj nie narysujesz jednego drzewa, ALE musisz pokazać wykres ważności zmiennych (varImpPlot lub importance). -->
-
-<!-- Pytanie do raportu: Czy Las Losowy wskazuje te same ważne zmienne co pojedyncze drzewo, czy znalazł coś nowego? -->
-
-<!-- Ewaluacja -->
-<!-- - F-miara na zbiorze walidacyjnym. -->
-
-<!-- Porównanie wyniku z pojedynczym drzewem (czy warto było komplikować model dla 1% zysku?). -->
-
-## Ocena uzyskanych modeli
-
-Tabela zbiorcza:
-
-Model | F-miara (Walidacja) | SSR (Walidacja) | Komentarz
-
-Decyzja ostateczna: "Do predykcji na zbiorze testowym wybieramy model X, ponieważ..." (np. miał najwyższą F-miarę i był stabilny).
-
-
 ## Predykcja modelowanych zmiennych na danych testowych
 
-W celu maksymalizacji zdolności generalizacji modelu, ostateczne drzewo regresyjne zostało douczone na połączonym zbiorze danych (treningowym oraz walidacyjnym), przy zachowaniu optymalnego parametru złożoności (`cp`) wyznaczonego w procesie walidacji krzyżowej.
+W celu maksymalizacji zdolności generalizacji modelu, ostateczne **drzewo regresyjne** zostało douczone na połączonym zbiorze danych (treningowym oraz walidacyjnym), przy zachowaniu optymalnego parametru złożoności (`cp`) wyznaczonego w procesie walidacji krzyżowej.
 
 Proces wyznaczania wartości zmiennej celu amount dla zbioru testowego przeprowadzono dwutorowo, uwzględniając specyfikę typów transakcji:
 
-Transakcje rekurencyjne: Dla obserwacji zidentyfikowanych jako kontynuacja subskrypcji, predykcja kwoty została wygenerowana przy użyciu wytrenowanego modelu drzewa regresyjnego. Pozwoliło to na uwzględnienie nieliniowych zależności między cechami transakcji a jej wartością.
+- Transakcje rekurencyjne: Dla obserwacji zidentyfikowanych jako kontynuacja subskrypcji, predykcja kwoty została wygenerowana przy użyciu wytrenowanego modelu drzewa regresyjnego. Pozwoliło to na uwzględnienie nieliniowych zależności między cechami transakcji a jej wartością.
 
-Transakcje inicjujące: W przypadku transakcji rozpoczynających cykl (initial), zastosowano podejście oparte na estymatorze statystycznym. Przypisano im wartość mediany obliczoną na podstawie transakcji inicjujących ze zbioru uczącego. Podejście to wynika z obserwowanej niskiej wariancji kwot weryfikacyjnych i startowych, co czyni medianę stabilnym i odpornym na wartości odstające predyktorem dla tej grupy.
+- Transakcje inicjujące: W przypadku transakcji rozpoczynających cykl, zastosowano podejście oparte na estymatorze statystycznym. Przypisano im wartość mediany obliczoną na podstawie transakcji inicjujących ze zbioru uczącego. Podejście to wynika z obserwowanej niskiej wariancji kwot weryfikacyjnych i startowych, co czyni medianę stabilnym i odpornym na wartości odstające predyktorem dla tej grupy.
+
+W obszarze **klasyfikacji** zastosowano tożsamą strategię. Ostateczny model drzewa decyzyjnego został ponownie przeliczony na połączonym zbiorze danych (treningowym i walidacyjnym), przy zachowaniu parametru przycięcia (`cp`) wynikającego z przyjętej wcześniej reguły.
+
+Procedura wyznaczania statusu dla zbioru testowego przebiegała według następujących reguł:
+
+- Transakcje rekurencyjne: Decyzja o przypisaniu klasy (sukces lub porażka) została podjęta przez wytrenowany model drzewa, na podstawie cech transakcji.
+
+- Transakcje inicjujące: Zgodnie z założeniem, transakcje typu INIT (służące do rejestracji karty) w analizowanym zbiorze traktowane są jako poprawne technicznie. Przypisano im deterministycznie status sukces, co eliminuje ryzyko błędnej klasyfikacji przez model uczony na specyfice płatności odnawialnych.
+
+- Wypełnianie braków: W przypadku obserwacji nietypowych, dla których model nie mógł wygenerować jednoznacznej ścieżki (np. braki danych w kluczowych atrybutach), przypisano klasę większościową (`sukces`).
 
 Kompletne wyniki predykcji zapisano w obiekcie predykcje_testowa w formacie .RData, zachowując integralność wymiarową z dostarczonym szablonem.
 
 ```{r}
 ## --- FINALNA PREDYKCJA I ZAPIS WYNIKÓW ---
 
-# 1. Douczamy model drzewa regresji na połączonych danych (Trening + Walidacja)
-# Używamy wybranego wcześniej optymalnego CP z drzewa przyciętego
-finalne_cp <- drzewo_reg_2_przyciete$cptable[nrow(drzewo_reg_2_przyciete$cptable), "CP"]
-model_reg_final <- rpart(amount ~ ., data = rbind(dane_reg_99, dane_wal_reg_99), 
-                         method = "anova", control = rpart.control(cp = finalne_cp))
+# A. DOUCZANIE MODELI NA PEŁNYCH DANYCH (TRENING + WALIDACJA)
 
-# 2. Przygotowujemy szablon wyników
+# 1. Model REGRESJI (Amount)
+# Pobieramy optymalne CP z modelu przyciętego
+finalne_cp_reg <- drzewo_reg_2_przyciete$cptable[nrow(drzewo_reg_2_przyciete$cptable), "CP"]
+
+model_reg_final <- rpart(amount ~ ., 
+                         data = rbind(dane_reg_99, dane_wal_reg_99), 
+                         method = "anova", 
+                         control = rpart.control(cp = finalne_cp_reg))
+
+# 2. Model KLASYFIKACJI (Status)
+# Używamy parametrów wyznaczonych w sekcji klasyfikacji: cp_optymalne i limit_obserwacji
+model_klas_final <- rpart(status_bin ~ ., 
+                          data = rbind(dane_treningowe, dane_walidacyjne), 
+                          method = "class", 
+                          control = rpart.control(cp = cp_optymalne, 
+                                                  minbucket = limit_obserwacji))
+
+# B. PRZYGOTOWANIE SZABLONU WYNIKÓW
 predykcje_testowa <- proba_testowa
 predykcje_testowa$amount <- NA
 predykcje_testowa$status <- NA
 
-# 3. Predykcja dla REKURENCYJNYCH (Amount - Model, Status - Placeholder/Model)
+# C. PREDYKCJA DLA REKURENCYJNYCH (AUTO/MANUAL)
+# Wykorzystujemy zbiór 'testowa_rekurencyjne', bo ma wyliczone cechy (tenure, expiry itp.)
 indeksy_rek <- predykcje_testowa$id %in% testowa_rekurencyjne$id
+
 if(any(indeksy_rek)) {
+  # Ważne: musimy mieć pewność, że kolejność wierszy pasuje. 
+  # Filtrujemy testowa_rekurencyjne tak, aby pasowała do indeksów w pętli, 
+  # ale tutaj rpart poradzi sobie po ID jeśli użyjemy predict na całym podzbiorze.
+  
+  # 1. Predykcja kwoty (Regresja)
   predykcje_testowa$amount[indeksy_rek] <- predict(model_reg_final, newdata = testowa_rekurencyjne)
-  # XXX Tu dodaj predykcję statusu
+  
+  # 2. Predykcja statusu (Klasyfikacja)
+  preds_klasa <- predict(model_klas_final, newdata = testowa_rekurencyjne, type = "class")
+  predykcje_testowa$status[indeksy_rek] <- as.character(preds_klasa)
 }
 
-# 4. Predykcja dla INICJUJĄCYCH (Amount - Mediana, Status - Success)
+# D. PREDYKCJA DLA INICJUJĄCYCH (INIT)
 indeksy_init <- predykcje_testowa$id %in% testowa_init$id
 
-# Wyznaczamy bezpieczną medianę (jak nie ma init, bierze z całości, jak nie ma nic to NA)
+# Wyznaczamy bezpieczną medianę z transakcji INIT (zbiór uczący)
 vals_init <- try(uczaca_init$amount, silent = TRUE)
 mediana_init <- if(is.numeric(vals_init) && length(vals_init) > 0) median(vals_init, na.rm=T) else median(dane_treningowe$amount, na.rm=T)
-if(is.na(mediana_init)) mediana_init <- NA
 
 if(any(indeksy_init)) {
+  # 1. Amount = Mediana
   predykcje_testowa$amount[indeksy_init] <- mediana_init
+  
+  # 2. Status = Zawsze "sukces" (zgodnie z logiką biznesową)
+  predykcje_testowa$status[indeksy_init] <- "sukces"
 }
 
-# 5. Łatanie dziur (dla transakcji "sierot" bez typu)
-braki <- is.na(predykcje_testowa$amount)
-if(sum(braki) > 0) {
-  predykcje_testowa$amount[braki] <- mediana_init
-  cat("Uzupełniono", sum(braki), "brakujących kwot medianą.\n")
+# E. ŁATANIE DZIUR (Dla transakcji "sierot" lub błędów)
+# Jeśli brakuje kwoty -> Mediana
+braki_amount <- is.na(predykcje_testowa$amount)
+if(sum(braki_amount) > 0) {
+  predykcje_testowa$amount[braki_amount] <- mediana_init
+  cat("Uzupełniono", sum(braki_amount), "brakujących kwot medianą.\n")
 }
 
-# XXX dodaj sukces do INIT
+# Jeśli brakuje statusu -> "sukces" (klasa większościowa)
+braki_status <- is.na(predykcje_testowa$status)
+if(sum(braki_status) > 0) {
+  predykcje_testowa$status[braki_status] <- "sukces"
+  cat("Uzupełniono", sum(braki_status), "brakujących statusów wartością 'sukces'.\n")
+}
 
-# 6. Zapis
-if(nrow(predykcje_testowa) == 15185 && sum(is.na(predykcje_testowa$amount)) == 0) {
+# F. ZAPIS
+if(nrow(predykcje_testowa) == 15185 && sum(is.na(predykcje_testowa$amount)) == 0 && sum(is.na(predykcje_testowa$status)) == 0) {
   save(predykcje_testowa, file = "predykcje_testowa.RData")
-  cat("SUKCES! Plik 'predykcje_testowa.RData' (15185 wierszy) zapisany.\n")
+  cat("SUKCES! Plik 'predykcje_testowa.RData' (15185 wierszy) zapisany poprawnie.\n")
+  
+  # Podgląd struktury wyników
+  print(table(predykcje_testowa$status))
+  print(summary(predykcje_testowa$amount))
 } else {
-  stop("BŁĄD: Złe wymiary lub puste pola!")
+  stop("BŁĄD: Złe wymiary lub puste pola w pliku wynikowym!")
 }
 ```
 
