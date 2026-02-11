@@ -251,7 +251,7 @@ sort(unique(proba_uczaca$description))
 ## Weryfikacja i korekta typów zmiennych
 
 **XXX tu wywalic browseragent**
-
+;
 Po wstępnym oczyszczeniu zbioru z niestandardowych braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
 
 <details>
@@ -648,7 +648,11 @@ kable(statystyki_pochodzenia,
 
 # Budowanie modeli
 
+<!-- 1.	Zbudować model predykcyjny dla zmiennej wskazującej czy transakcja rekurencyjna jest udana. -->
+<!-- 2.	Zbudować model predykcyjny dla zmiennej amount dla transakcji rekurencyjnych.  -->
 <!-- (m.in. ustalanie optymalnych wartości parametrów, wybór najlepszego modelu)  -->
+
+<!-- W każdym zadaniu należy wykorzystać przynajmniej jeden model poznany na zajęciach: drzewa klasyfikacyjne i regresyjne, drzewa podejście wielomodelowe  -->
 
 # Prezentacja i interpretacja wyników modelu
 
@@ -656,6 +660,15 @@ kable(statystyki_pochodzenia,
 
 # Predykcja modelowanych zmiennych na danych testowych
 
+<!-- Uzyskane rozwiązania z modeli należy wykorzystać do predykcji wartości ze zbioru testowego.  -->
 <!-- predykcje należy zapisać w odpowiednich kolumnach obiektu predykcje_testowa  -->
+
+<!-- •	Uzupełniony obiekt predykcje_testowa (zapisany jako predykcje_testowa.RData)  -->
+<!-- o	Predykcje testowe muszą mieć taki sam wymiar jak podano  -->
+<!-- o	Predykcje dla status niech będą wpisem „sukces” lub „porażka” (klasa zmiennej character lub factor).  -->
+<!-- o	Nie zmieniać nazwy obiektu predykcje_testowa.  -->
+
+<!-- •	Dokładność predykcji (dla 3 najlepszych predykcji, osobno dla każdego zadania, dodatkowy bonus w wysokości 10 pkt; dokładność oceniana jest przez F-miarę dla klasyfikacji i sumę kwadratów reszt dla regresji) -- Przy liczeniu F-miary przypadek „pozytywny” to transakcja nieudana  -->
+
 
 # Podsumowanie
