@@ -582,8 +582,6 @@ cat(sprintf("Liczba kart przeterminowanych w zbiorze testowym: %d (%.2f%%)\n",
 
 Karty przeterminowane stanowią niewielki odsetek analizowanych danych.
 
-**XXX czy zamienic wartosci ujemne na 0 czy zostawić??**
-
 ```{r waznosc_karty_wizualizacje, echo=F, fig.align='center', fig.width=10, fig.height=3}
 dane_wygasanie <- bind_rows(
   uczaca_rekurencyjne %>% 
@@ -1249,8 +1247,6 @@ Przeprowadzona analiza porównawcza wykazała kluczowy wpływ wartości ekstrema
 
 Finalny model (Model 3) wyjaśnia blisko 47% zmienności kwoty transakcji dla typowych operacji, myląc się średnio o około 48-49 zł. Wzrost $R^2$ przy jednoczesnym uproszczeniu drzewa świadczy o tym, że model przed przycięciem (Model 2) był lekko przeuczony (overfitted), a zastosowanie reguły 1-SE pozwoliło wyłonić najbardziej stabilne reguły decyzyjne.
 
-
-**XXX interpretację wyników modelu**
 
 <!-- ## Podejście wielomodelowe -->
 
