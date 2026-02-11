@@ -251,9 +251,7 @@ sort(unique(proba_uczaca$description))
 
 ## Weryfikacja i korekta typów zmiennych
 
-**XXX tu wywalic browseragent**
-;
-Po wstępnym oczyszczeniu zbioru z niestandardowych braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
+Po wstępnym oczyszczeniu zbioru z braków danych, przeprowadzono analizę typów zmiennych. Zauważono, że część zmiennych numerycznych oraz kategorycznych została błędnie zinterpretowana jako tekst (`character`), co uniemożliwia ich poprawne wykorzystanie w modelach nieparametrycznych.
 
 <details>
 
@@ -268,20 +266,15 @@ str(proba_uczaca)
 ::: {style="height: 10px;"}
 :::
 
-Szczególną uwagę poświęcono zmiennym tekstowym `browseragent` oraz `description`. W modelach nieparametrycznych zmienne kategoryczne o bardzo dużej liczbie unikalnych poziomów nie są wskazane.
+Szczególną uwagę poświęcono zmiennej tekstowej `description`. W modelach nieparametrycznych zmienne kategoryczne o bardzo dużej liczbie unikalnych poziomów nie są bowiem wskazane.
 
-Sprawdzono liczbę unikalnych wariantów dla obu podejrzanych zmiennych:
+Sprawdzono liczbę unikalnych wariantów dla podejrzanej zmiennej:
 
-```{r ile_unikalnych_podejrzane_zmienne, echo = F}
-cat("Liczba wariantów w zmiennej browseragent:", length(unique(proba_uczaca$browseragent)))
+```{r ile_unikalnych_podejrzana_zmienna, echo = F}
 cat("Liczba wariantów w zmiennej description:", length(unique(proba_uczaca$description)))
 ```
 
-Analiza wykazała istotną różnicę:
-
--   Zmienna `browseragent` posiada ponad 2000 unikalnych wartości. Ze względu na tak wysoki poziom zaszumienia, zmienna ta zostanie pominięta w dalszej konwersji na typ kategoryczny.
-
--   Zmienna `description`, wbrew początkowym założeniom, przyjmuje jedynie kilkanaście powtarzalnych wartości. Jest to informacja potencjalnie użyteczna dla modelu, dlatego zostanie ona uwzględniona w dalszej analizie jako zmienna kategoryczna (`factor`).
+Analiza wykazała, że zmienna `description`, wbrew początkowym założeniom, przyjmuje jedynie kilkanaście powtarzalnych wartości. Jest to informacja potencjalnie użyteczna dla modelu, dlatego zostanie ona uwzględniona w dalszej analizie jako zmienna kategoryczna (`factor`).
 
 ```{r f_napraw_strukture, include = F}
 # Funkcja naprawia strukturę danych - konwersja na odpowiednie typy zmiennych
@@ -379,7 +372,7 @@ cat("Liczba transakcji rekurencyjnych w próbie testowej:", nrow(testowa_rekuren
 
 ## Rekonstrukcja relacji między transakcjami
 
-Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą. 
+Wykorzystując klucz `initialtransaction_id`, połączono każdą transakcję rekurencyjną z odpowiadającą jej transakcją inicjalizującą, aby uzyskać dla niej dodatkowe informacje. 
 
 ```{r f_dolacz_informacje_o_init, include = F}
 # Funkcja łącząca transakcje rekurencyjne z informacjami o inicjalizujących
@@ -396,9 +389,11 @@ testowa_rekurencyjne <- dolacz_informacje_o_init(testowa_rekurencyjne, testowa_i
 ```
 
 
-## Definicja zmiennych celu
+## Definicja zmiennej celu
 
-Klasyfikacja: Przekształcenie zmiennej status na postać binarną (Sukces/Porażka) zgodnie z wymogami projektu (ustawienie "Porażki" jako poziomu pozytywnego do F-miary).
+Dokonano transformacji pierwotnej zmiennej celu (`status`). Zmienna ta została poddana dychotomizacji: wszystkie transakcje o statusie innym niż `completed successfully` zaklasyfikowano jako `porażka`, natomiast pozostałe jako `sukces`.
+
+Kluczowym elementem inżynierii cech było zdefiniowanie porażki jako klasy wyróżnionej (pozytywnej). Jest to podyktowane celem projektu, którym jest identyfikacja transakcji zagrożonych odrzuceniem. Takie ustawienie poziomów czynnika pozwala na bezpośrednią interpretację metryk jakości modelu, w szczególności F-miary.
 
 ```{r f_transformuj_status, include = F}
 # Funkcja transformująca zmienną celu "status"
@@ -418,8 +413,6 @@ transformuj_status <- function(df) {
 ```{r transformacja_status}
 uczaca_rekurencyjne <- transformuj_status(uczaca_rekurencyjne)
 ```
-
-**XXX Regresja: Przygotowanie zmiennej amount (analiza rozkładu i ewentualna transformacja logarytmiczna). NIE JESTEM PEWNA CZY ROBIĆ BO PODOBNO DRZEWA NIE WYMAGAJĄ **
 
 
 ## Inżynieria cech czasowych
@@ -801,6 +794,7 @@ cp_optymalne <- bledy[idx_opt, "CP"]
 
 cat("Wybrane optymalne CP:", cp_optymalne, "\n")
 ```
+
 Na podstawie wyznaczonego parametru `cp_optymalne` dokonano przycięcia drzewa maksymalnego, usuwając gałęzie nie wnoszące istotnej poprawy jakości klasyfikacji.
 
 ```{r przyciecie_drzewa_klas}
@@ -828,12 +822,67 @@ rpart.plot(
 Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
 Ważność zmiennych: Wyświetl drzewo$variable.importance. : Które zmienne najbardziej redukują niejednorodność? (np. czy ważniejszy jest countrycode czy amount?).
 
-Ewaluacja:
-- Predykcja na zbiorze walidacyjnym.
-- Macierz pomyłek (Confusion Matrix) - (table(predykcja, rzeczywistosc))
-- Kluczowe: Obliczenie F-miary (pamiętając, że "Porażka" to klasa pozytywna!).
+### Ewaluacja modelu na zbiorze walidacyjnym
+
+W celu ostatecznej weryfikacji jakości zbudowanego modelu, przeprowadzono predykcję na niezależnym zbiorze walidacyjnym. Pozwala to ocenić, czy model nie uległ przeuczeniu i jak radzi sobie z klasyfikacją nowych obserwacji.
+
+Kluczowym narzędziem oceny jest macierz pomyłek, która zestawia decyzje modelu z rzeczywistym statusem transakcji.
+
+```{r predykcja_walidacyjny_klas}
+predykcje_walidacja <- predict(drzewo_opt_klas, 
+                               dane_walidacyjne, 
+                               type = "class")
+```
 
 
+```{r macierz_pomylek_walidacyjny_klas}
+macierz_pomylek <- table(Rzeczywiste = dane_walidacyjne$status_bin, 
+                         Przewidziane = predykcje_walidacja)
+
+kable(macierz_pomylek, caption = "Macierz pomyłek dla zbioru walidacyjnego")
+```
+
+Na podstawie powyższej macierzy wyznaczono kluczowe współczynniki jakości klasyfikacji, przyjmując klasę `porażka` jako pozytywną:
+
+- Precyzja: Jaki odsetek transakcji uznanych przez model za porażki, faktycznie nimi był?
+
+- Czułość: Jaki odsetek wszystkich rzeczywistych porażek udało się wykryć?
+
+- F-miara: Średnia harmoniczna precyzji i czułości (kluczowa miara w przypadku niezbalansowanych klas).
+
+```{r metryki_jakosci_modelu_klas}
+# Wyciągnięcie wartości z macierzy (wiersze = Rzeczywiste, kolumny = Przewidziane)
+TP <- macierz_pomylek["porażka", "porażka"]
+FP <- macierz_pomylek["sukces", "porażka"]
+FN <- macierz_pomylek["porażka", "sukces"]
+TN <- macierz_pomylek["sukces", "sukces"]
+
+# Obliczenie metryk
+precyzja <- TP / (TP + FP)
+czulosc  <- TP / (TP + FN)
+specyficznosc <- TN / (TN + FP)
+f_miara <- 2 * (precyzja * czulosc) / (precyzja + czulosc)
+dokladnosc <- (TP + TN) / sum(macierz_pomylek)
+
+wyniki <- data.frame(
+  Metryka = c("Dokładność", "Precyzja", "Czułość", "F-miara"),
+  Wartość = round(c(dokladnosc, precyzja, czulosc, f_miara), 4)
+)
+
+kable(wyniki, caption = "Miary oceny modelu dla klasy 'porażka'")
+```
+
+Analiza uzyskanych metryk pozwala na szczegółową ocenę zdolności predykcyjnych modelu drzewa decyzyjnego:
+
+- Model poprawnie klasyfikuje ponad 82% wszystkich transakcji. Wynik ten jest jednak zdominowany przez liczną klasę `sukces` i w przypadku danych niezbalansowanych nie powinien być jedynym kryterium oceny.
+
+- Gdy model przewiduje, że transakcja zakończy się porażką, ma rację w ok. 67% przypadków. Jest to satysfakcjonujący wynik, oznaczający, że model generuje stosunkowo mało fałszywych alarmów.
+
+- Czułość to najsłabszy punkt modelu. Algorytm identyfikuje jedynie co piątą rzeczywistą porażkę (21%). Oznacza to, że model jest bardzo konserwatywny - woli przypisać transakcję do klasy większościowej (`sukces`), niż ryzykować błąd.
+
+- Niska wartość F-miary jest bezpośrednią konsekwencją niskiej czułości. Wskazuje to, że podstawowy model drzewa decyzyjnego ma trudności z wyłapywaniem rzadkich zdarzeń, jakimi są błędy transakcji.
+
+Zbudowany model może służyć jako system wspomagający do filtrowania transakcji o bardzo wysokim ryzyku (tam, gdzie pewność jest duża), jednak nie jest wystarczający do wykrycia wszystkich potencjalnych problemów płatniczych.
 
 ## Regresja (`amount`)
 
