@@ -644,8 +644,6 @@ kable(statystyki_pochodzenia,
       caption = "Struktura pochodzenia kart w zbiorze uczącym")
 ```
 
-
-
 # Budowanie modeli
 
 <!-- 1.	Zbudować model predykcyjny dla zmiennej wskazującej czy transakcja rekurencyjna jest udana. -->
@@ -654,11 +652,101 @@ kable(statystyki_pochodzenia,
 
 <!-- W każdym zadaniu należy wykorzystać przynajmniej jeden model poznany na zajęciach: drzewa klasyfikacyjne i regresyjne, drzewa podejście wielomodelowe  -->
 
-# Prezentacja i interpretacja wyników modelu
+## Podział zbioru uczącego
 
-# Ocena uzyskanych modeli
+Masz uczaca_rekurencyjne (ok. 29 tys. wierszy) i proba_testowa (bez etykiet). Aby ocenić model i wybrać najlepsze parametry zanim wyślesz wyniki, musisz stworzyć własny poligon doświadczalny.
 
-# Predykcja modelowanych zmiennych na danych testowych
+Podzielić uczaca_rekurencyjne na:
+
+- Treningowy (np. 70%): Na tym budujemy drzewa.
+
+- Walidacyjny (np. 30%): Na tym sprawdzamy F-miarę i błędy.
+
+Aby ocenić, czy model jest dobry, czy przeuczony (overfitting).
+
+
+## Klasyfikacja (`status`)
+
+Celem jest przewidzenie: Sukces vs Porażka.
+
+Model: Drzewo Klasyfikacyjne (rpart) - Wersja Podstawowa
+- Zbudowanie dużego drzewa (parametr cp bardzo niski).
+- Wizualizacja drzewa (rpart.plot).
+- Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
+
+Strojenie (Pruning):
+- Analiza wykresu błędu w zależności od złożoności (plotcp).
+- Wybór optymalnego punktu przycięcia (tam, gdzie błąd jest najmniejszy).
+- Przycięcie drzewa (prune).
+
+Wizualizacja: rpart.plot (przyciętego drzewa).
+Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
+Ważność zmiennych: Wyświetl drzewo$variable.importance. : Które zmienne najbardziej redukują niejednorodność? (np. czy ważniejszy jest countrycode czy amount?).
+
+Ewaluacja:
+- Predykcja na zbiorze walidacyjnym.
+- Macierz pomyłek (Confusion Matrix) - (table(predykcja, rzeczywistosc))
+- Kluczowe: Obliczenie F-miary (pamiętając, że "Porażka" to klasa pozytywna!).
+
+
+## Regresja (`amount`)
+
+Celem jest przewidzenie kwoty transakcji.
+
+Analiza zmiennej celu: 
+- Szybki rzut oka na rozkład amount. Jeśli jest bardzo skośny (dużo małych kwot, kilka gigantycznych), warto rozważyć logarytmizację log(amount), choć drzewa radzą sobie z tym lepiej niż regresja liniowa.
+
+Model: Drzewo Regresyjne (rpart method="anova")
+- budowa drzewa
+- sprawdzenie zmiennych ważności (variable importance).
+
+Wizualizacja: rpart.plot.
+Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
+Ważność zmiennych: Czy te same zmienne są ważne dla kwoty, co dla statusu?
+
+Strojenie:
+- Ponownie szukamy optymalnego cp (Complexity Parameter) minimalizującego błąd.
+
+Wizualizacja: rpart.plot.
+Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
+Ważność zmiennych
+
+Ewaluacja:
+- Błąd SSR (suma kwadratów reszt) lub RMSE na zbiorze walidacyjnym.
+- Miarą błędu jest SSR (Suma Kwadratów Reszt) na zbiorze walidacyjnym.
+
+## Podejście wielomodelowe
+
+<!-- Skoro masz wymóg "wyboru najlepszego modelu", warto zbudować drugi, konkurencyjny model dla obu zadań, aby mieć co porównywać. -->
+
+<!-- Opcja A (Prosta): Las Losowy (randomForest). Jest to naturalne rozwinięcie drzew. Zazwyczaj daje lepsze wyniki, ale jest "czarną skrzynką" (trudniej narysować ładny wykres). -->
+
+<!-- Opcja B (Alternatywna): Regresja Logistyczna (dla statusu) i Liniowa (dla kwoty). To pokaże, czy złożone metody nieparametryczne w ogóle dają przewagę nad prostą statystyką. -->
+
+Budowa modelu:
+- Użycie randomForest (lub bagging z adabag jak na zajęciach) dla zmiennej status.
+- Ustalenie liczby drzew (wykres błędu w zależności od liczby drzew).
+
+Interpretacja (Specyficzna dla lasów)
+Tutaj nie narysujesz jednego drzewa, ALE musisz pokazać wykres ważności zmiennych (varImpPlot lub importance).
+
+Pytanie do raportu: Czy Las Losowy wskazuje te same ważne zmienne co pojedyncze drzewo, czy znalazł coś nowego?
+
+Ewaluacja
+- F-miara na zbiorze walidacyjnym.
+
+Porównanie wyniku z pojedynczym drzewem (czy warto było komplikować model dla 1% zysku?).
+
+## Ocena uzyskanych modeli
+
+Tabela zbiorcza:
+
+Model | F-miara (Walidacja) | SSR (Walidacja) | Komentarz
+
+Decyzja ostateczna: "Do predykcji na zbiorze testowym wybieramy model X, ponieważ..." (np. miał najwyższą F-miarę i był stabilny).
+
+
+## Predykcja modelowanych zmiennych na danych testowych
 
 <!-- Uzyskane rozwiązania z modeli należy wykorzystać do predykcji wartości ze zbioru testowego.  -->
 <!-- predykcje należy zapisać w odpowiednich kolumnach obiektu predykcje_testowa  -->
@@ -669,6 +757,12 @@ kable(statystyki_pochodzenia,
 <!-- o	Nie zmieniać nazwy obiektu predykcje_testowa.  -->
 
 <!-- •	Dokładność predykcji (dla 3 najlepszych predykcji, osobno dla każdego zadania, dodatkowy bonus w wysokości 10 pkt; dokładność oceniana jest przez F-miarę dla klasyfikacji i sumę kwadratów reszt dla regresji) -- Przy liczeniu F-miary przypadek „pozytywny” to transakcja nieudana  -->
+
+Wczytanie pełnego modelu (opcjonalnie: douczenie zwycięskiego modelu na połączonym zbiorze treningowym+walidacyjnym dla maksymalizacji wiedzy).
+
+Wykonaj predykcję na zbiorze testowa_rekurencyjne (tym, który przygotowaliśmy). Generowanie predykcji dla proba_testowa.
+
+Zapisz wyniki do pliku predykcje_testowa.RData.
 
 
 # Podsumowanie
