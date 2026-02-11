@@ -971,7 +971,9 @@ cat("Liczba obserwacji w zbiorze walidacyjnym 99%:", nrow(dane_wal_reg_99), "\n"
 ```
 
 
-### Budowa drzewa regresyjnego
+### Budowa drzew regresyjnych
+
+**Budowa modelu na pełnych danych**
 
 W pierwszej kolejności zbudowano model na pełnym zbiorze danych (`dane_reg_full`), aby zweryfikować, w jaki sposób algorytm radzi sobie z wartościami ekstremalnymi.
 
@@ -1005,6 +1007,28 @@ cbind(drzewo_reg_1$variable.importance)
 
 </details>
 
+
+<details>
+  <summary> Reguły w drzewie na pełnych danych </summary>
+  
+```{r}
+rpart.rules(drzewo_reg_1, cover = TRUE, roundint = FALSE)
+```
+</details>
+
+Analiza reguł wygenerowanych przez drzewo regresyjne ujawnia silną segmentację transakcji w zależności od sektora partnera oraz czasu trwania relacji.
+
+Dominujący segment (Standardowe transakcje): Największa grupa, obejmująca aż 76% wszystkich obserwacji, to transakcje o relatywnie niskiej wartości (średnia 36 PLN). Dotyczy ona płatności w sektorze ECOMMERCE w standardowych kategoriach (usługi, sklepy spożywcze) realizowanych przez klientów o stażu krótszym niż rok (< 352 dni). Jest to bazowy profil klienta w analizowanym zbiorze.
+
+Wpływ sektora działania partnera (listtype): Model wyraźnie wskazuje, że sektor partnera jest kluczowym czynnikiem różnicującym kwoty.
+
+Dla sektora MWF (17% zbioru) średnia kwota transakcji wzrasta skokowo do 138 PLN.
+
+Dla sektora PUBLIC (1% zbioru) model przewiduje jeszcze wyższe kwoty, na poziomie średnio 514 PLN.
+
+Wykrycie anomalii / wartości skrajnych: Szczególną uwagę zwraca wyodrębnienie bardzo specyficznej reguły o znikomym pokryciu (0% ogółu, czyli pojedyncze przypadki), gdzie przewidywana kwota wynosi aż 1799 PLN. Model powiązał tę kwotę ze specyficzną kombinacją: długi staż klienta (> 352 dni) oraz sposób łączenia się (acquirerconnectionmethod) typu ECARD_REST. Sugeruje to, że w danych znajdują się pojedyncze transakcje o bardzo wysokich wartościach, które model próbuje "zapamiętać", tworząc dla nich dedykowaną, bardzo szczegółową gałąź.
+
+**Wartości ekstremalne**
 
 Szczególną uwagę zwrócono na rozmieszczenie transakcji o najwyższych kwotach (powyżej 99. centyla). Analiza węzłów końcowych wykazała, że wartości ekstremalne nie tworzą jednorodnej grupy, lecz są rozproszone w wielu liściach. Poniższa tabela przedstawia liczbę transakcji ekstremalnych w poszczególnych węzłach końcowych drzewa:
 
@@ -1065,7 +1089,32 @@ cbind(drzewo_reg_2$variable.importance)
 
 Ranking ważności zmiennych potwierdza dominującą rolę sektora działania partnera (`listtype`) oraz kategorii MCC (`mccname`) oraz metody połączenia (`acquirerconnectionmethod`). Istotnym czynnikiem okazała się również godzina transakcji (`hour`), co sugeruje występowanie dobowych wzorców zakupowych.
 
-### Strojenie
+<details>
+  <summary> Reguły w drzewie na 99% populacji </summary>
+  
+```{r}
+rpart.rules(drzewo_reg_2, cover = TRUE, roundint = FALSE)
+```
+
+</details>
+Analiza reguł decyzyjnych pozwala na wyodrębnienie wyraźnych segmentów kwotowych, zależnych głównie od branży partnera (mccname) oraz jego sektora działania (listtype).
+
+Segment podstawowy (Masowy): Dominującą grupę, obejmującą aż 80% wszystkich transakcji, stanowią płatności o niskiej średniej wartości (34 PLN). Dotyczą one sektora ECOMMERCE (`listtype`) w najpopularniejszych branżach (`mccname`), takich jak: usługi informacyjne, sklepy spożywcze oraz ogólne usługi biznesowe. Jest to najbardziej typowy profil transakcji w badanym zbiorze.
+
+Segmenty o podwyższonej wartości (Wpływ sektora działania): Model wskazuje na silną zależność między sektorem działania partnera (`listtype`) a kwotą transakcji.
+
+Dla sektora MWF, który stanowi drugą co do wielkości grupę (17% populacji), średnia przewidywana kwota wzrasta ponad trzykrotnie względem bazy, osiągając poziom 120 PLN.
+
+Najwyższą średnią wartość (347 PLN) model przypisał do transakcji z sektora PUBLIC, choć stanowią one niewielki margines zbioru (1%).
+
+Specyfika techniczna (Sposób łączenia): Wewnątrz sektora ECOMMERCE model wyodrębnił specyficzne branże ("Restauracja" oraz "Ubezpieczenia"), gdzie kluczowym czynnikiem różnicującym okazał się techniczny sposób łączenia się (acquirerconnectionmethod).
+
+Użycie metody FDP_SOAP w tych branżach wiąże się ze średnią kwotą na poziomie 220 PLN.
+
+Zastosowanie metody ECARD_REST wskazuje na niższą średnią – 108 PLN. Sugeruje to, że wybrana technologia integracji płatności może być powiązana z charakterystyką sprzedawanych usług (np. droższe polisy vs tańsze posiłki).
+
+
+### Przycinanie drzewa
 
 Aby uniknąć przeuczenia (overfitting), przeprowadzono procedurę przycinania drzewa. Wykorzystano metodę sprawdzania krzyżowego (cross-validation) do znalezienia optymalnego parametru złożoności `cp`.
 
@@ -1120,8 +1169,29 @@ cbind(drzewo_reg_2_przyciete$variable.importance)
 ```
 
 </details>
-  
 
+<div style="height: 10px;"></div>
+  
+<details>
+  <summary> Reguły w drzewie przyciętym </summary>
+  
+```{r}
+rpart.rules(drzewo_reg_2_przyciete, cover = TRUE, roundint = FALSE)
+```
+
+</details>
+
+Model finalny skutecznie zgeneralizował dane, wyodrębniając trzy główne profile transakcyjne w oparciu o sektor (`listtype`), branżę (`mccname`) oraz technologię połączenia (`acquirerconnectionmethod`).
+
+Dominujący segment niskokwotowy (Masowy): Ponad 70% wszystkich transakcji (reguły o pokryciu 20%, 31%, 20%) dotyczy sektora ECOMMERCE w branżach "Sklepy spożywcze" oraz "Usługi biznesowe". Średnia kwota waha się tu od 26 PLN do 50 PLN. Co ciekawe, model wykorzystuje tu zmienną hour (godzina), różnicując kwoty przed i po godzinie 11:00, co wskazuje na dobowe wzorce mikropłatności.
+
+Segment średni (Sektor MWF): Bardzo stabilna i liczna grupa (17% populacji) to transakcje z sektora MWF. Model nie wymagał tu dodatkowych podziałów – sam fakt przynależności do tego sektora determinuje przewidywaną kwotę na poziomie 120 PLN.
+
+Segment wysokokwotowy (Publiczny i Specjalistyczny): Najwyższe kwoty przewidywane są w dwóch przypadkach:
+
+Dla sektora PUBLIC, gdzie średnie sięgają 342–372 PLN.
+
+Dla specyficznych nisz w ECOMMERCE ("Restauracja" lub "Ubezpieczenia"). Tutaj model wchodzi w szczegóły techniczne – przy użyciu karty VISA i metody FDP_SOAP predykcja szybuje aż do 500 PLN, podczas gdy te same branże przy innych parametrach oscylują wokół 108–160 PLN.
 
 
 ### Ewaluacja modeli
