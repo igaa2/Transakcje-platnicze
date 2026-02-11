@@ -22,20 +22,10 @@ body {
 ```
 
 ```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
-<!-- <details> -->
-
-<!--   <summary> Templatka zawijaczy kodu </summary> -->
-
-<!-- </details> -->
-
-<!-- <div style="height: 10px;"></div> -->
-
-<!-- cat("Krótki opis:", numerek) -->
-
-```{r ladowanie_bibliotek}
+```{r ladowanie_bibliotek, include = F}
 pacman::p_load(
   dplyr,
   rpart,
@@ -582,8 +572,6 @@ cat(sprintf("Liczba kart przeterminowanych w zbiorze testowym: %d (%.2f%%)\n",
 
 Karty przeterminowane stanowią niewielki odsetek analizowanych danych.
 
-**XXX czy zamienic wartosci ujemne na 0 czy zostawić??**
-
 ```{r waznosc_karty_wizualizacje, echo=F, fig.align='center', fig.width=10, fig.height=3}
 dane_wygasanie <- bind_rows(
   uczaca_rekurencyjne %>% 
@@ -645,19 +633,19 @@ kable(statystyki_pochodzenia,
 
 # Budowanie modeli
 
-<!-- 1.	Zbudować model predykcyjny dla zmiennej wskazującej czy transakcja rekurencyjna jest udana. -->
-<!-- 2.	Zbudować model predykcyjny dla zmiennej amount dla transakcji rekurencyjnych.  -->
-<!-- (m.in. ustalanie optymalnych wartości parametrów, wybór najlepszego modelu)  -->
-
-<!-- W każdym zadaniu należy wykorzystać przynajmniej jeden model poznany na zajęciach: drzewa klasyfikacyjne i regresyjne, drzewa podejście wielomodelowe  -->
-
 ## Wybór zmiennych do modelowania
 
 W celu zapewnienia przejrzystości procesu modelowania oraz uniknięcia problemów z przeuczeniem przeprowadzono selekcję cech. Proces ten oparto na analizie liczby unikalnych poziomów każdej zmiennej.
 
+<details>
+
+<summary>Liczba unikalnych poziomów każdej zmiennej</summary>
+
 ```{r unikalne, echo=F}
 cbind(sort(sapply(uczaca_rekurencyjne, function(x) length(unique(x)))))
 ```
+
+</details>
 
 Do dalszych etapów zakwalifikowano zmienne kategoryczne posiadające od 2 do 25 unikalnych poziomów oraz kluczowe zmienne numeryczne. Pozwoli to na budowę czytelnych drzew decyzyjnych, eliminując jednocześnie szum informacyjny.
 
@@ -737,7 +725,7 @@ cat("Ustawienie minbucket na:", limit_obserwacji, "\n")
 
 Oznacza to, że każdy liść drzewa musi reprezentować grupę co najmniej 178 transakcji.
 
-W pierwszym etapie modelowania zbudowano tzw. drzewo maksymalne. Zastosowano algorytm CART z parametrem złożoności cp = 0, co pozwoliło na swobodny podział przestrzeni cech aż do momentu spełnienia warunku minbucket. Celem tego kroku jest wygenerowanie modelu o niskim obciążeniu, który wychwyci nawet subtelne zależności w danych, godząc się tymczasowo na wysoką wariancję i ryzyko nadmiernego dopasowania.
+W pierwszym etapie modelowania zbudowano tzw. drzewo maksymalne. Zastosowano algorytm CART z parametrem złożoności `cp = 0`, co pozwoliło na swobodny podział przestrzeni cech aż do momentu spełnienia warunku minbucket. Celem tego kroku jest wygenerowanie modelu o niskim obciążeniu, który wychwyci nawet subtelne zależności w danych, godząc się tymczasowo na wysoką wariancję i ryzyko nadmiernego dopasowania.
 
 ```{r budowa_drzewa_maksymalnego_klasyfikacja}
 drzewo_max_klas <- rpart(
@@ -764,7 +752,14 @@ rpart.plot(
 )
 ```
 
-- Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
+Analiza struktury drzewa maksymalnego pozwala na identyfikację kluczowych segmentów ryzykownych:
+
+- Pochodzenie karty głównym podziałem: najważniejszą zmienną różnicującą jest card_origin. Karty zagraniczne charakteryzują się znacznie wyższym bazowym ryzykiem odrzucenia (ok. 41%) w porównaniu do kart krajowych (ok. 18%).
+
+- Wśród kart zagranicznych, transakcje realizowane w kategoriach MCC: Sieci komputerowe / usługi informacyjne oraz Ubezpieczenia, są obarczone bardzo wysokim ryzykiem.
+
+- Dla kart krajowych istotna okazała się metoda połączenia ECARD_REST. W tej grupie występuje silna zależność od pory dnia - transakcje realizowane w godzinach nocnych i wczesnoporannych (przed 7:30) mają większe prawdopodobieństwa niepowodzenia, co może sugerować przerwy serwisowe lub specyficzne okna fraudowe.
+
 
 ### Optymalizacja (przycinanie) drzewa
 
@@ -819,8 +814,20 @@ rpart.plot(
 ```
 
 
-Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
-Ważność zmiennych: Wyświetl drzewo$variable.importance. : Które zmienne najbardziej redukują niejednorodność? (np. czy ważniejszy jest countrycode czy amount?).
+<details>
+  <summary> Reguły w drzewie przyciętym </summary>
+  
+```{r reguly_drzewo_opt_klas, echo = F}
+rpart.rules(drzewo_opt_klas, cover = TRUE, roundint = FALSE)
+```
+</details>
+
+
+Analiza struktury wygenerowanego drzewa decyzyjnego pozwoliła na precyzyjną identyfikację warunków, w których ryzyko niepowodzenia transakcji jest najwyższe. Najbardziej newralgiczną grupę, obarczoną aż 79-procentowym ryzykiem błędu, stanowią operacje realizowane krajowymi kartami debetowymi w godzinach wieczornych, dotyczące płatności za usługi komputerowe lub sieciowe.
+
+Istotnym czynnikiem ryzyka okazała się również pora realizacji przelewu w połączeniu z metodą procesowania. Transakcje krajowe obsługiwane przez system ECARD_REST, zlecane w godzinach nocnych oraz wczesnoporannych (przed 07:30), kończą się niepowodzeniem w blisko 69% przypadków, co może sugerować występowanie cyklicznych przerw technicznych lub okien serwisowych po stronie operatora.
+
+Trzeci zidentyfikowany obszar ryzyka dotyczy płatności międzynarodowych. W sytuacji, gdy karty zagraniczne wykorzystywane są do opłacenia składek ubezpieczeniowych lub usług informatycznych, skuteczność transakcji spada, a ryzyko odrzucenia wynosi około 63%. Wynika to prawdopodobnie z restrykcyjnej polityki antyfraudowej banków, które częściej blokują transakcje zagraniczne w tych konkretnych kategoriach usług.
 
 ### Ewaluacja modelu na zbiorze walidacyjnym
 
@@ -1011,7 +1018,7 @@ cbind(drzewo_reg_1$variable.importance)
 <details>
   <summary> Reguły w drzewie na pełnych danych </summary>
   
-```{r}
+```{r reguly_drzewo_reg_1, echo = F}
 rpart.rules(drzewo_reg_1, cover = TRUE, roundint = FALSE)
 ```
 </details>
@@ -1092,11 +1099,12 @@ Ranking ważności zmiennych potwierdza dominującą rolę sektora działania pa
 <details>
   <summary> Reguły w drzewie na 99% populacji </summary>
   
-```{r}
+```{r reguly_drzewo_reg_2, echo = F}
 rpart.rules(drzewo_reg_2, cover = TRUE, roundint = FALSE)
 ```
 
 </details>
+
 Analiza reguł decyzyjnych pozwala na wyodrębnienie wyraźnych segmentów kwotowych, zależnych głównie od branży partnera (mccname) oraz jego sektora działania (listtype).
 
 Segment podstawowy (Masowy): Dominującą grupę, obejmującą aż 80% wszystkich transakcji, stanowią płatności o niskiej średniej wartości (34 PLN). Dotyczą one sektora ECOMMERCE (`listtype`) w najpopularniejszych branżach (`mccname`), takich jak: usługi informacyjne, sklepy spożywcze oraz ogólne usługi biznesowe. Jest to najbardziej typowy profil transakcji w badanym zbiorze.
@@ -1175,7 +1183,7 @@ cbind(drzewo_reg_2_przyciete$variable.importance)
 <details>
   <summary> Reguły w drzewie przyciętym </summary>
   
-```{r}
+```{r reguly_drzewo_reg_2_przyciete, echo = F}
 rpart.rules(drzewo_reg_2_przyciete, cover = TRUE, roundint = FALSE)
 ```
 
@@ -1350,6 +1358,3 @@ if(nrow(predykcje_testowa) == 15185 && sum(is.na(predykcje_testowa$amount)) == 0
   stop("BŁĄD: Złe wymiary lub puste pola w pliku wynikowym.")
 }
 ```
-
-
-# Podsumowanie
