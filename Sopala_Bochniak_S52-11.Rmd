@@ -662,7 +662,7 @@ kable(statystyki_pochodzenia,
 W celu zapewnienia przejrzystości procesu modelowania oraz uniknięcia problemów z przeuczeniem przeprowadzono selekcję cech. Proces ten oparto na analizie liczby unikalnych poziomów każdej zmiennej.
 
 ```{r unikalne, echo=F}
-cbind(sort(sapply(dane_treningowe, function(x) length(unique(x)))))
+cbind(sort(sapply(uczaca_rekurencyjne, function(x) length(unique(x)))))
 ```
 
 Do dalszych etapów zakwalifikowano zmienne kategoryczne posiadające od 2 do 30 unikalnych poziomów oraz kluczowe zmienne numeryczne. Pozwoli to na budowę czytelnych drzew decyzyjnych, eliminując jednocześnie szum informacyjny.
@@ -861,15 +861,12 @@ Ważność zmiennych: Czy te same zmienne są ważne dla kwoty, co dla statusu?
 
 
 ```{r}
-# Wykres, który nie straszy:
 rpart.plot(drzewo_reg_1, 
-           type = 2,            # Opis pod węzłem
-           extra = 1,           # Pokazuje liczbę obserwacji (n)
-           under = TRUE,        # Średnia kwota w liściu
-           faclen = 5,          # SKRACA NAZWY KART DO 5 ZNAKÓW (kluczowe!)
-           tweak = 0.8,         # Zmniejsza nieco czcionkę, by napisy się nie nakładały
-           main = "Drzewo regresyjne - kwota transakcji",
-           box.palette = "Purples") # Wygląda profesjonalnie z Twoim fioletem
+           branch.type = 5, 
+           type = 2,           # type=2 rysuje opisy pod węzłami, co jest czytelniejsze
+           extra = 1,          # pokazuje liczbę obserwacji
+           under = TRUE, 
+           faclen = 3)         # faclen=3 skróci nazwy krajów/poziomów do 3 liter
 ```
 
 
