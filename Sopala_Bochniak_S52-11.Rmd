@@ -680,8 +680,7 @@ selected_features <- names(unique_counts[unique_counts > 1 & unique_counts <= 25
 # 3. Ręcznie dodajemy kluczowe zmienne ilościowe (które mają dużo poziomów, ale są OK dla drzew)
 # Dodajemy też zmienne celu: 'status_bin' dla klasyfikacji i 'amount' dla regresji
 selected_features <- unique(c(selected_features, 
-                              "amount", 
-                              "status_bin", 
+                              "amount",
                               "months_to_expire", 
                               "days_since_init"))
 
@@ -842,33 +841,59 @@ cat("Liczba obserwacji w zbiorze walidacyjnym 99%:", nrow(dane_wal_reg_99), "\n"
 ```
 
 
-### Model: Drzewo Regresyjne (rpart method="anova")
+### Budowa drzewa regresyjnego
 - budowa drzewa
 - sprawdzenie zmiennych ważności (variable importance).
 
 ```{r model_reg_1}
 drzewo_reg_1 <- rpart(
   formula = amount ~.,
-  data = dane_treningowe,
+  data = dane_reg_full,
   method = "anova"
 )
 ```
-
 
 #### Wizualizacja: rpart.plot.
 Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
 Ważność zmiennych: Czy te same zmienne są ważne dla kwoty, co dla statusu?
 
-
-```{r}
+```{r wykres_drzewo_amount_1, echo = F, fig.align='center', fig.width=15, fig.height=9}
 rpart.plot(drzewo_reg_1, 
-           branch.type = 5, 
-           type = 2,           # type=2 rysuje opisy pod węzłami, co jest czytelniejsze
-           extra = 1,          # pokazuje liczbę obserwacji
-           under = TRUE, 
-           faclen = 3)         # faclen=3 skróci nazwy krajów/poziomów do 3 liter
+           type = 2,
+           extra = 1,
+           under = TRUE,
+           tweak = 0.95,
+           main = "Drzewo regresyjne - kwota transakcji",
+           box.palette = "Purples")
 ```
 
+```{r}
+# Ile w każdym węźle jest wartości ekstremalnym?
+tapply(
+  X = dane_reg_full$amount > quantile(dane_reg_full$amount, 0.99),
+  INDEX = drzewo_reg_1$where,
+  FUN = sum
+)
+```
+
+```{r model_reg_2}
+drzewo_reg_2 <- rpart(
+  formula = amount ~.,
+  data = dane_reg_99,
+  method = "anova"
+)
+```
+
+
+```{r wykres_drzewo_amount_2, echo = F, fig.align='center', fig.width=15, fig.height=7}
+rpart.plot(drzewo_reg_2, 
+           type = 2,
+           extra = 1,
+           under = TRUE,
+           tweak = 0.95,
+           main = "Drzewo regresyjne - kwota transakcji",
+           box.palette = "Purples")
+```
 
 ### Strojenie:
 - Ponownie szukamy optymalnego cp (Complexity Parameter) minimalizującego błąd.
