@@ -721,9 +721,7 @@ Celem jest przewidzenie kwoty transakcji.
 Analiza zmiennej celu: 
 - Szybki rzut oka na rozkład amount. Jeśli jest bardzo skośny (dużo małych kwot, kilka gigantycznych), warto rozważyć logarytmizację log(amount), choć drzewa radzą sobie z tym lepiej niż regresja liniowa.
 
-```{r zmienna_amount}
-# --- 1. Eksploracja zmiennej celu (amount) ---
-
+```{r zmienna_amount, echo=F, fig.align='center', fig.height=3}
 # Statystyki opisowe
 summary(dane_treningowe$amount)
 
@@ -731,12 +729,12 @@ summary(dane_treningowe$amount)
 hist(dane_treningowe$amount, 
      breaks = 50, 
      col = "#8E24AA", 
-     main = "Rozkład kwoty transakcji (przed czyszczeniem)")
+     main = "Rozkład kwoty transakcji")
 
 # Sprawdzamy "ogon" dystrybucji - 10 największych transakcji
 sort(dane_treningowe$amount, decreasing = TRUE)[1:10]
 
-# Sprawdźmy, jaki próg odcina 99% danych (żeby nie strzelać "na oko" w 10000)
+# Sprawdźmy, jaki próg odcina 99% danych
 prog_99 <- quantile(dane_treningowe$amount, 0.99)
 cat("99% transakcji jest mniejszych niż:", round(prog_99, 2), "\n")
 
@@ -746,23 +744,28 @@ cat("Liczba wartości ekstremalnych do usunięcia:", ile_ekstremalnych,
     "(", round(mean(dane_treningowe$amount > prog_99) * 100, 2), "% zbioru )\n")
 ```
 
+prawie wszystkie jednostki mieszczą się w kwotach od 0 do 500 zł i jest bardzo mało jednostek w dalszych przedziałach
 
-Model: Drzewo Regresyjne (rpart method="anova")
+Wartości ekstremalne mają ogromny wpływ na sumę kwadratów reszt - stanowią dużą część -> model szuka takiego podziału który zmniejszy sumę kwadratów reszt, więc będzie szukał takiego podziału żeby oddzielić bardzo duże i bardzo małe: jeśli się nie uda: jeśli nie będzie zmiennej która pozwoliłaby rozdzielić bardzo bogatych od biednych to wtedy zaburza nam to szukanie właściwych relacji
+
+strategia: model z wszystkimi rekordami i zobaczyć jak się model zachowuje, czy uda mu sie oddzielić jednostki ekstremalne, jeśli nie to usuwamy jednostki ekstremalne, bo my chcemy wykryć zależności dla większości jednostek
+
+### Model: Drzewo Regresyjne (rpart method="anova")
 - budowa drzewa
 - sprawdzenie zmiennych ważności (variable importance).
 
-Wizualizacja: rpart.plot.
+#### Wizualizacja: rpart.plot.
 Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
 Ważność zmiennych: Czy te same zmienne są ważne dla kwoty, co dla statusu?
 
-Strojenie:
+### Strojenie:
 - Ponownie szukamy optymalnego cp (Complexity Parameter) minimalizującego błąd.
 
-Wizualizacja: rpart.plot.
+#### Wizualizacja: rpart.plot.
 Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
 Ważność zmiennych
 
-Ewaluacja:
+### Ewaluacja:
 - Błąd SSR (suma kwadratów reszt) lub RMSE na zbiorze walidacyjnym.
 - Miarą błędu jest SSR (Suma Kwadratów Reszt) na zbiorze walidacyjnym.
 
