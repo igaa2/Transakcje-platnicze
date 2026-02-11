@@ -862,9 +862,15 @@ rpart.plot(drzewo_reg_1,
            box.palette = "Purples")
 ```
 
+<details>
+  <summary> Ważność zmiennych w drzewie na pełnych danych </summary>
+  
 ```{r waznosc_zmiennych_reg_1, echo=FALSE}
 cbind(drzewo_reg_1$variable.importance)
 ```
+
+</details>
+
 
 Szczególną uwagę zwrócono na rozmieszczenie transakcji o najwyższych kwotach (powyżej 99. centyla). Analiza węzłów końcowych wykazała, że wartości ekstremalne nie tworzą jednorodnej grupy, lecz są rozproszone w wielu liściach. Poniższa tabela przedstawia liczbę transakcji ekstremalnych w poszczególnych węzłach końcowych drzewa:
 
@@ -892,7 +898,7 @@ drzewo_reg_2 <- rpart(
 ```
 
 
-```{r wykres_drzewo_amount_2, echo = F, fig.align='center', fig.width=15}
+```{r wykres_drzewo_amount_2, echo = F, fig.align='center', fig.width=15, fig.height=7}
 rpart.plot(drzewo_reg_2, 
            type = 2,
            extra = 1,
@@ -905,7 +911,7 @@ rpart.plot(drzewo_reg_2,
 
 Struktura drzewa wskazuje, że kluczowymi czynnikami różnicującymi kwotę transakcji są: typ listy (`listtype`), kategoria sklepu (`mccname`) oraz metoda połączenia (`acquirerconnectionmethod`).
 
-```{r proces_budowy_drzewa_reg_2, echo = F}
+```{r proces_budowy_drzewa_reg_2, include = F}
 # Przestudiować proces budowy drzewa
 drzewo_reg_2
 
@@ -914,12 +920,19 @@ rpart.rules(drzewo_reg_2, style = "tallw")
 summary(drzewo_reg_2)
 ```
 
+<details>
+  <summary> Ważność zmiennych w drzewie na 99% populacji </summary>
+
 ```{r waznosc_zmiennych_reg_2, echo=FALSE}
 cbind(drzewo_reg_2$variable.importance)
 ```
 
+</details>
+
+Ranking ważności zmiennych potwierdza dominującą rolę typu listy (`listtype`) oraz kategorii MCC (`mccname`) oraz metody połączenia (`acquirerconnectionmethod`). Istotnym czynnikiem okazała się również godzina transakcji (`hour`), co sugeruje występowanie dobowych wzorców zakupowych.
 
 ### Strojenie
+
 Aby uniknąć przeuczenia (overfitting), przeprowadzono procedurę przycinania drzewa. Wykorzystano metodę sprawdzania krzyżowego (cross-validation) do znalezienia optymalnego parametru złożoności `cp`.
 
 ```{r szukanie_optymalnego_cp, echo = F}
@@ -950,32 +963,39 @@ Po przycięciu uzyskano stabilny model, który generalizuje wiedzę o kwotach tr
 
 ```{r przyciecie_drzewa_reg, echo = F}
 drzewo_reg_2_przyciete <- przycinanie(drzewo_reg_2_duze)
-drzewo_reg_2_przyciete$cptable
 ```
 
 
-```{r wykres_drzewo_amount_2_przyciete, echo = F, fig.align='center', fig.width=15}
+```{r wykres_drzewo_amount_2_przyciete, echo = F, fig.align='center', fig.width=15, fig.height=10}
 rpart.plot(drzewo_reg_2_przyciete, 
            type = 2,
            extra = 1,
            under = TRUE,
-           tweak = 0.95,
+           tweak = 1.2,
            main = "Drzewo regresyjne - kwota transakcji",
            box.palette = "Purples")
 ```
 
 Ranking ważności zmiennych potwierdza dominującą rolę typu listy (`listtype`) oraz kategorii MCC (`mccname`). Istotnym czynnikiem okazała się również godzina transakcji (`hour`), co sugeruje występowanie dobowych wzorców zakupowych.
 
+<details>
+  <summary> Ważność zmiennych w drzewie przyciętym </summary>
+
 ```{r waznosc_zmiennych_przyciete, echo=FALSE}
 cbind(drzewo_reg_2_przyciete$variable.importance)
 ```
+
+</details>
+  
+
+
 
 ### Ewaluacja modeli
 
 Ocenę jakości predykcji przeprowadzono na niezależnym zbiorze walidacyjnym (`dane_wal_reg_99`), ograniczonym do zakresu typowych transakcji. Pozwala to na rzetelne sprawdzenie błędu generalizacji modelu.
 
 
-```{r dokladnosc_modelu}
+```{r dokladnosc_modelu, echo = F}
 predykcje <- predict(drzewo_reg_2_przyciete, newdata = dane_wal_reg_99)
 rzeczywiste <- dane_wal_reg_99$amount
 
