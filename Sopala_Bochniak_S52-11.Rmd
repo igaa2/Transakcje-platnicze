@@ -1045,6 +1045,9 @@ Przeprowadzona analiza porównawcza wykazała kluczowy wpływ wartości ekstrema
 
 Finalny model (Model 3) wyjaśnia blisko 47% zmienności kwoty transakcji dla typowych operacji, myląc się średnio o około 48-49 zł. Wzrost $R^2$ przy jednoczesnym uproszczeniu drzewa świadczy o tym, że model przed przycięciem (Model 2) był lekko przeuczony (overfitted), a zastosowanie reguły 1-SE pozwoliło wyłonić najbardziej stabilne reguły decyzyjne.
 
+
+**XXX interpretację wyników modelu**
+
 <!-- ## Podejście wielomodelowe -->
 
 <!-- <!-- Skoro masz wymóg "wyboru najlepszego modelu", warto zbudować drugi, konkurencyjny model dla obu zadań, aby mieć co porównywać. --> 
