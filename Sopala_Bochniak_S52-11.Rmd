@@ -665,7 +665,7 @@ W celu zapewnienia przejrzystości procesu modelowania oraz uniknięcia problem�
 cbind(sort(sapply(uczaca_rekurencyjne, function(x) length(unique(x)))))
 ```
 
-Do dalszych etapów zakwalifikowano zmienne kategoryczne posiadające od 2 do 30 unikalnych poziomów oraz kluczowe zmienne numeryczne. Pozwoli to na budowę czytelnych drzew decyzyjnych, eliminując jednocześnie szum informacyjny.
+Do dalszych etapów zakwalifikowano zmienne kategoryczne posiadające od 2 do 25 unikalnych poziomów oraz kluczowe zmienne numeryczne. Pozwoli to na budowę czytelnych drzew decyzyjnych, eliminując jednocześnie szum informacyjny.
 
 ```{r selekcja_zmiennych, echo=F}
 # --- SELEKCJA ZMIENNYCH ---
@@ -675,7 +675,7 @@ unique_counts <- sapply(uczaca_rekurencyjne, function(x) length(unique(x)))
 
 # 2. Wybieramy nazwy kolumn (próg 30 poziomów dla kategorycznych)
 # Wykluczamy zmienne z 1 poziomem (stałe) i te z > 30 (identyfikatory)
-selected_features <- names(unique_counts[unique_counts > 1 & unique_counts <= 30])
+selected_features <- names(unique_counts[unique_counts > 1 & unique_counts <= 25])
 
 # 3. Ręcznie dodajemy kluczowe zmienne ilościowe (które mają dużo poziomów, ale są OK dla drzew)
 # Dodajemy też zmienne celu: 'status_bin' dla klasyfikacji i 'amount' dla regresji
@@ -804,7 +804,7 @@ W celu weryfikacji wpływu wartości odstających na stabilność predykcji przy
 
 ### Wybór zmiennych do regresji
 
-W ramach przygotowań do budowy modelu regresyjnego, ze zbiorów danych wykluczono zmienną status_bin, pozostawiając jedynie cechy wyselekcjonowane na wstępnym etapie analizy. Głównym celem procesu było przygotowanie dwóch wariantów danych: pełnego (dane_reg_full) oraz ograniczonego do 99. percentyla kwoty transakcji (dane_reg_99). Zastosowanie progu odcięcia wyznaczonego na zbiorze treningowym pozwoliło na stworzenie spójnych podzbiorów walidacyjnych, co umożliwi rzetelną ocenę wpływu wartości skrajnych na błąd średniokwadratowy modelu.
+W ramach przygotowań do budowy modelu regresyjnego, ze zbiorów danych wykluczono zmienną status_bin, pozostawiając jedynie cechy wyselekcjonowane na wstępnym etapie analizy. Głównym celem procesu było przygotowanie dwóch wariantów danych: pełnego (`dane_reg_full`) oraz ograniczonego do 99. percentyla kwoty transakcji (`dane_reg_99`). Zastosowanie progu odcięcia wyznaczonego na zbiorze treningowym pozwoliło na stworzenie spójnych podzbiorów walidacyjnych, co umożliwi rzetelną ocenę wpływu wartości skrajnych na błąd średniokwadratowy modelu.
 
 ```{r dane_treningowe_regresja, echo = F}
 # Usuwamy zmienne klasyfikacyjne (status_bin), bo w regresji przewidujemy amount
