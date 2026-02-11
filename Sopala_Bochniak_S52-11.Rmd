@@ -733,28 +733,40 @@ Celem tego etapu jest zbudowanie modelu drzewa decyzyjnego, który przewidzi, cz
 
 ### Budowa drzewa maksymalnego
 
-W pierwszym kroku zbudowano drzewo maksymalne (cp = 0), pozwalając na swobodny rozrost struktury. Pozwoli to w kolejnym kroku na znalezienie optymalnego punktu przycięcia.
+Przed przystąpieniem do konstrukcji modelu, zdefiniowano warunek w postaci minimalnej liczebności węzła końcowego (minbucket). Aby zapewnić istotność statystyczną wyodrębnionych reguł i uniknąć tworzenia gałęzi dla pojedynczych przypadków (co prowadziłoby do trywialnego przeuczenia), przyjęto próg wynoszący 1% liczebności zbioru treningowego. 
+
+```{r minbucket_obliczenie}
+# Obliczenie 1% liczebności zbioru treningowego
+limit_obserwacji <- round(nrow(dane_treningowe) * 0.01)
+
+cat("Ustawienie minbucket na:", limit_obserwacji, "\n")
+```
+
+Oznacza to, że każdy liść drzewa musi reprezentować grupę co najmniej 178 transakcji.
+
+W pierwszym etapie modelowania zbudowano tzw. drzewo maksymalne. Zastosowano algorytm CART z parametrem złożoności cp = 0, co pozwoliło na swobodny podział przestrzeni cech aż do momentu spełnienia warunku minbucket. Celem tego kroku jest wygenerowanie modelu o niskim obciążeniu, który wychwyci nawet subtelne zależności w danych, godząc się tymczasowo na wysoką wariancję i ryzyko nadmiernego dopasowania.
 
 ```{r budowa_drzewa_maksymalnego_klasyfikacja}
 drzewo_max_klas <- rpart(
   formula = status_bin ~ ., 
   data = dane_treningowe,
   method = "class",
-  control = rpart.control(cp = 0, minbucket = 5)
+  control = rpart.control(cp = 0, 
+                          minbucket = limit_obserwacji)
 )
 ```
 
-- Wizualizacja drzewa (rpart.plot).
+Poniższy diagram przedstawia strukturę wygenerowanego drzewa maksymalnego. Ze względu na brak ograniczeń w przyroście głębokości (poza minbucket), model ten charakteryzuje się wysokim stopniem skomplikowania, co utrudnia jego interpretację i sugeruje konieczność optymalizacji w celu poprawy zdolności generalizacji na nowych danych.
 
 ```{r wykres_drzewo_max_klas}
 rpart.plot(
   x = drzewo_max_klas,
-  branch.type = 5,       # Styl gałęzi
   extra = 104,           # Prawdopodobieństwo + % obserwacji
   under = TRUE,          # Etykiety pod węzłami
   fallen.leaves = TRUE,
   main = "Drzewo klasyfikacyjne: Sukces vs Porażka",
-  box.palette = "BuRd"
+  box.palette = "BuRd",
+  type = 3
 )
 ```
 
@@ -762,14 +774,15 @@ rpart.plot(
 
 ### Optymalizacja (przycinanie) drzewa
 
-- Analiza wykresu błędu w zależności od złożoności (plotcp).
+Kluczowym etapem budowy drzewa decyzyjnego jest jego przycięcie, mające na celu redukcję wariancji modelu. W tym celu przeanalizowano zależność między parametrem złożoności (`CP`) a błędem walidacji krzyżowej (`xerror`).
+
+Wykres osypiska obrazuje, jak zmienia się błąd predykcji wraz ze wzrostem wielkości drzewa.
 
 ```{r wykres_blad_zlozonosc_klas, echo = F}
 plotcp(drzewo_max_klas)
 ```
 
-**XXX popraw opis**
-Zastosowano regułę 1-SE, aby wybrać najprostsze drzewo, którego błąd mieści się w granicach błędu minimalnego powiększonego o jedno odchylenie standardowe.
+Do wyboru ostatecznej struktury modelu zastosowano regułę jednego błędu standardowego. Zgodnie z tą metodyką, nie wybiera się drzewa o absolutnie najmniejszym błędzie walidacji (które może być niestabilne), lecz najprostsze drzewo, którego błąd mieści się w podanym zakresie. Podejście to pozwala uzyskać model bardziej konserwatywny, odporniejszy na szum w danych i lepiej generalizujący wyniki na zbiorze testowym.
 
 ```{r wybor_optymalnego_cp_klas}
 # Tabela błędów
@@ -787,24 +800,25 @@ cp_optymalne <- bledy[idx_opt, "CP"]
 
 cat("Wybrane optymalne CP:", cp_optymalne, "\n")
 ```
-Przycięcie
+Na podstawie wyznaczonego parametru `cp_optymalne` dokonano przycięcia drzewa maksymalnego, usuwając gałęzie nie wnoszące istotnej poprawy jakości klasyfikacji.
 
 ```{r przyciecie_drzewa_klas}
 drzewo_opt_klas <- prune(drzewo_max_klas, 
                          cp = cp_optymalne)
 ```
 
-Wizualizacja przyciętego drzewa
+Poniżej przedstawiono wizualizację optymalnego drzewa decyzyjnego. Uzyskany model charakteryzuje się mniejszą liczbę węzłów niż drzewo maksymalne, co przekłada się na czytelniejsze reguły decyzyjne. Węzły końcowe (liście) zawierają informację o dominującej klasie (`sukces` lub `porażka`), prawdopodobieństwie przynależności do tej klasy oraz odsetku obserwacji trafiających do danego segmentu.
 
 ```{r wykres_drzewo_opt_klas}
 rpart.plot(
   x = drzewo_opt_klas,
-  branch.type = 5,       # Styl gałęzi
+  #branch.type = 5,       # Styl gałęzi
   extra = 104,           # Prawdopodobieństwo + % obserwacji
   under = TRUE,          # Etykiety pod węzłami
   fallen.leaves = TRUE,
   main = "Drzewo klasyfikacyjne: Sukces vs Porażka",
-  box.palette = "BuRd"
+  box.palette = "BuRd",
+  type = 3
 )
 ```
 
