@@ -657,6 +657,42 @@ kable(statystyki_pochodzenia,
 
 <!-- W każdym zadaniu należy wykorzystać przynajmniej jeden model poznany na zajęciach: drzewa klasyfikacyjne i regresyjne, drzewa podejście wielomodelowe  -->
 
+## Wybór zmiennych do modelowania
+
+W celu zapewnienia przejrzystości procesu modelowania oraz uniknięcia problemów z przeuczeniem przeprowadzono selekcję cech. Proces ten oparto na analizie liczby unikalnych poziomów każdej zmiennej.
+
+```{r unikalne, echo=F}
+cbind(sort(sapply(dane_treningowe, function(x) length(unique(x)))))
+```
+
+Do dalszych etapów zakwalifikowano zmienne kategoryczne posiadające od 2 do 30 unikalnych poziomów oraz kluczowe zmienne numeryczne. Pozwoli to na budowę czytelnych drzew decyzyjnych, eliminując jednocześnie szum informacyjny.
+
+```{r selekcja_zmiennych, echo=F}
+# --- SELEKCJA ZMIENNYCH ---
+
+# 1. Liczymy unikalne wartości dla każdej kolumny w głównym zbiorze
+unique_counts <- sapply(uczaca_rekurencyjne, function(x) length(unique(x)))
+
+# 2. Wybieramy nazwy kolumn (próg 30 poziomów dla kategorycznych)
+# Wykluczamy zmienne z 1 poziomem (stałe) i te z > 30 (identyfikatory)
+selected_features <- names(unique_counts[unique_counts > 1 & unique_counts <= 30])
+
+# 3. Ręcznie dodajemy kluczowe zmienne ilościowe (które mają dużo poziomów, ale są OK dla drzew)
+# Dodajemy też zmienne celu: 'status_bin' dla klasyfikacji i 'amount' dla regresji
+selected_features <- unique(c(selected_features, 
+                              "amount", 
+                              "status_bin", 
+                              "months_to_expire", 
+                              "days_since_init"))
+
+# 4. Tworzymy oczyszczony zbiór bazowy do modelowania
+# Usuwamy też surową zmienną 'status' (zostawiamy tylko binarną)
+uczaca_final <- uczaca_rekurencyjne %>%
+  select(all_of(selected_features)) %>%
+  select(-any_of(c("status", "description")))
+```
+
+
 ## Podział zbioru uczącego
 
 W celu rzetelnej weryfikacji jakości budowanych modeli oraz uniknięcia zjawiska przeuczenia (overfitting), pierwotny zbiór danych (`uczaca_rekurencyjne`) został podzielony na dwie niezależne podpróby. Ponieważ udostępniony zbiór testowy (`proba_testowa`) nie posiada etykiet zmiennej celu, konieczne było wyodrębnienie własnego zestawu danych do bieżącej ewaluacji.
@@ -674,18 +710,18 @@ Aby zapewnić pełną powtarzalność uzyskanych wyników, ustawiono ziarno gene
 set.seed(555933)
 
 train_index <- sample(
-  x = nrow(uczaca_rekurencyjne), 
-  size = 0.7 * nrow(uczaca_rekurencyjne), 
+  x = nrow(uczaca_final), 
+  size = 0.7 * nrow(uczaca_final), 
   replace = FALSE
 )
 
 # Dzielimy zbiór
-dane_treningowe <- uczaca_rekurencyjne[train_index, ]
-dane_walidacyjne <- uczaca_rekurencyjne[-train_index, ]
+dane_treningowe <- uczaca_final[train_index, ]
+dane_walidacyjne <- uczaca_final[-train_index, ]
 
 # Weryfikacja proporcji (komunikaty po polsku)
 cat("Proporcja 'sukces' w całym zbiorze:\n")
-print(prop.table(table(uczaca_rekurencyjne$status_bin)))
+print(prop.table(table(uczaca_final$status_bin)))
 
 cat("\nProporcja 'sukces' w zbiorze treningowym:\n")
 print(prop.table(table(dane_treningowe$status_bin)))
@@ -721,27 +757,33 @@ Ewaluacja:
 
 ## Regresja (`amount`)
 
-Celem jest przewidzenie kwoty transakcji.
+### Analiza rozkładu zmiennej celu (`amount`)
 
-Analiza zmiennej celu: 
-- Szybki rzut oka na rozkład amount. Jeśli jest bardzo skośny (dużo małych kwot, kilka gigantycznych), warto rozważyć logarytmizację log(amount), choć drzewa radzą sobie z tym lepiej niż regresja liniowa.
+Wstępna eksploracja zmiennej objaśnianej amount wykazała silną asymetrię prawostronną rozkładu. Zdecydowana większość transakcji w zbiorze treningowym dotyczy niskich kwot – mediana wynosi 30.00, podczas gdy średnia arytmetyczna jest ponad dwukrotnie wyższa (62.63). Wskazuje to na obecność tzw. długiego ogona dystrybucji.
 
-```{r zmienna_amount, echo=F, fig.align='center', fig.height=3}
-# Statystyki opisowe
+```{r statystyki_amount, echo=FALSE}
 summary(dane_treningowe$amount)
+```
 
-# Histogram (zobaczymy czy jest prawostronnie skośny jak na zajęciach)
-hist(dane_treningowe$amount, 
-     breaks = 50, 
-     col = "#8E24AA", 
-     main = "Rozkład kwoty transakcji")
+```{r histogram_amount, echo=F, fig.align='center', fig.height=3}
+library(ggplot2)
 
-# Sprawdzamy "ogon" dystrybucji - 10 największych transakcji
-sort(dane_treningowe$amount, decreasing = TRUE)[1:10]
+ggplot(dane_treningowe, aes(x = amount)) +
+  geom_histogram(bins = 50, fill = "#8E24AA", color = "white") +
+  labs(title = "Rozkład kwoty transakcji",
+       x = "Kwota transakcji (PLN)",
+       y = "Liczba transakcji") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"), # Tytuł na środku
+    axis.text = element_text(color = "black")              # Wyraźniejsze liczby
+  )
+```
 
+```{r skrajne_wartosci_amount, echo=F}
 # Sprawdźmy, jaki próg odcina 99% danych
 prog_99 <- quantile(dane_treningowe$amount, 0.99)
-cat("99% transakcji jest mniejszych niż:", round(prog_99, 2), "\n")
+cat("99% transakcji jest mniejszych niż:", round(prog_99, 2), " zł. \n")
 
 # Ile tracimy, jeśli odetniemy ten 1%?
 ile_ekstremalnych <- sum(dane_treningowe$amount > prog_99)
@@ -749,19 +791,87 @@ cat("Liczba wartości ekstremalnych do usunięcia:", ile_ekstremalnych,
     "(", round(mean(dane_treningowe$amount > prog_99) * 100, 2), "% zbioru )\n")
 ```
 
-prawie wszystkie jednostki mieszczą się w kwotach od 0 do 500 zł i jest bardzo mało jednostek w dalszych przedziałach
+Szczegółowa analiza wartości skrajnych ujawniła, że aż 99% wszystkich obserwacji mieści się w przedziale do 585.53. Powyżej tego progu znajduje się 179 transakcji (stanowiących zaledwie 1% zbioru), z maksymalną zanotowaną kwotą na poziomie 2606.37.
 
-Wartości ekstremalne mają ogromny wpływ na sumę kwadratów reszt - stanowią dużą część -> model szuka takiego podziału który zmniejszy sumę kwadratów reszt, więc będzie szukał takiego podziału żeby oddzielić bardzo duże i bardzo małe: jeśli się nie uda: jeśli nie będzie zmiennej która pozwoliłaby rozdzielić bardzo bogatych od biednych to wtedy zaburza nam to szukanie właściwych relacji
 
-strategia: model z wszystkimi rekordami i zobaczyć jak się model zachowuje, czy uda mu sie oddzielić jednostki ekstremalne, jeśli nie to usuwamy jednostki ekstremalne, bo my chcemy wykryć zależności dla większości jednostek
+W kontekście budowy drzew regresyjnych, wartości ekstremalne mogą mieć destrukcyjny wpływ na jakość modelu. Algorytm dąży do minimalizacji sumy kwadratów reszt (SSR), przez co pojedyncze, bardzo wysokie kwoty mogą wymuszać tworzenie sztucznych podziałów, niemających zastosowania dla typowych transakcji.
+
+W celu weryfikacji wpływu wartości odstających na stabilność predykcji przyjęto dwuetapowe podejście:
+
+1. W pierwszej kolejności zostanie zbudowany model próbny na pełnym zbiorze danych (uwzględniającym wartości ekstremalne).
+
+2. Następnie zweryfikowana zostanie struktura liści drzewa. Jeżeli algorytm nie będzie w stanie skutecznie odseparować najwyższych kwot (tj. będą one rozproszone w wielu węzłach końcowych, zawyżając średnią w grupach typowych transakcji), podjęta zostanie decyzja o usunięciu górnego 1% obserwacji. Celem jest zbudowanie modelu, który najlepiej generalizuje zależności dla dominującej większości danych.
+
+### Wybór zmiennych do regresji
+
+W ramach przygotowań do budowy modelu regresyjnego, ze zbiorów danych wykluczono zmienną status_bin, pozostawiając jedynie cechy wyselekcjonowane na wstępnym etapie analizy. Głównym celem procesu było przygotowanie dwóch wariantów danych: pełnego (dane_reg_full) oraz ograniczonego do 99. percentyla kwoty transakcji (dane_reg_99). Zastosowanie progu odcięcia wyznaczonego na zbiorze treningowym pozwoliło na stworzenie spójnych podzbiorów walidacyjnych, co umożliwi rzetelną ocenę wpływu wartości skrajnych na błąd średniokwadratowy modelu.
+
+```{r dane_treningowe_regresja, echo = F}
+# Usuwamy zmienne klasyfikacyjne (status_bin), bo w regresji przewidujemy amount
+# Wykorzystujemy fakt, że selekcja kolumn odbyła się już na wstępie projektu
+dane_reg_full <- dane_treningowe %>%
+  select(-any_of("status_bin")) %>%
+  filter(!is.na(amount))
+
+# Obliczamy próg 99% na zbiorze treningowym
+prog_99 <- quantile(dane_reg_full$amount, 0.99)
+
+# Tworzymy ramkę 99% (bez wartości ekstremalnych)
+dane_reg_99 <- dane_reg_full %>%
+  filter(amount <= prog_99)
+
+# Weryfikacja
+cat("Liczba obserwacji w zbiorze treningowym 100%:", nrow(dane_reg_full), "\n")
+cat("Liczba obserwacji w zbiorze treningowym 99%:", nrow(dane_reg_99), "\n")
+cat("Próg odcięcia (99. percentyl):", round(prog_99, 2), "PLN\n")
+```
+
+```{r dane_walidacyjne_regresja, echo =F}
+# Przygotowujemy walidację 100% (usuwamy zmienną celu klasyfikacji)
+dane_wal_reg_full <- dane_walidacyjne %>%
+  select(-any_of("status_bin")) %>%
+  filter(!is.na(amount))
+
+# Tworzymy walidację 99%
+dane_wal_reg_99 <- dane_wal_reg_full %>%
+  filter(amount <= prog_99)
+
+# Weryfikacja
+cat("Liczba obserwacji w zbiorze walidacyjnym 100%:", nrow(dane_wal_reg_full), "\n")
+cat("Liczba obserwacji w zbiorze walidacyjnym 99%:", nrow(dane_wal_reg_99), "\n")
+```
+
 
 ### Model: Drzewo Regresyjne (rpart method="anova")
 - budowa drzewa
 - sprawdzenie zmiennych ważności (variable importance).
 
+```{r model_reg_1}
+drzewo_reg_1 <- rpart(
+  formula = amount ~.,
+  data = dane_treningowe,
+  method = "anova"
+)
+```
+
+
 #### Wizualizacja: rpart.plot.
 Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
 Ważność zmiennych: Czy te same zmienne są ważne dla kwoty, co dla statusu?
+
+
+```{r}
+# Wykres, który nie straszy:
+rpart.plot(drzewo_reg_1, 
+           type = 2,            # Opis pod węzłem
+           extra = 1,           # Pokazuje liczbę obserwacji (n)
+           under = TRUE,        # Średnia kwota w liściu
+           faclen = 5,          # SKRACA NAZWY KART DO 5 ZNAKÓW (kluczowe!)
+           tweak = 0.8,         # Zmniejsza nieco czcionkę, by napisy się nie nakładały
+           main = "Drzewo regresyjne - kwota transakcji",
+           box.palette = "Purples") # Wygląda profesjonalnie z Twoim fioletem
+```
+
 
 ### Strojenie:
 - Ponownie szukamy optymalnego cp (Complexity Parameter) minimalizującego błąd.
@@ -773,6 +883,10 @@ Ważność zmiennych
 ### Ewaluacja:
 - Błąd SSR (suma kwadratów reszt) lub RMSE na zbiorze walidacyjnym.
 - Miarą błędu jest SSR (Suma Kwadratów Reszt) na zbiorze walidacyjnym.
+
+
+Zgodnie z przyjętą strategią modelowania dla typowych obserwacji, ewaluacja modelu (dobór parametru CP oraz obliczenie błędu SSR) została przeprowadzona na zbiorze walidacyjnym ograniczonym do zakresu treningowego (kwoty < `r round(prog_99, 2)` PLN). W finalnym zbiorze testowym wystąpią wartości wyższe. Dla nich model drzewiasty przyjmie predykcję równą maksymalnej wartości w liściu (niedoszacowanie), co jest naturalną cechą drzew regresyjnych, które nie dokonują ekstrapolacji poza zakres danych uczących.
+
 
 ## Podejście wielomodelowe
 
