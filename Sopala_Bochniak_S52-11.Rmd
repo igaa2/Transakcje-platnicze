@@ -758,15 +758,16 @@ drzewo_max_klas <- rpart(
 
 Poniższy diagram przedstawia strukturę wygenerowanego drzewa maksymalnego. Ze względu na brak ograniczeń w przyroście głębokości (poza minbucket), model ten charakteryzuje się wysokim stopniem skomplikowania, co utrudnia jego interpretację i sugeruje konieczność optymalizacji w celu poprawy zdolności generalizacji na nowych danych.
 
-```{r wykres_drzewo_max_klas}
+```{r wykres_drzewo_max_klas, echo = F, fig.align='center', fig.width=15, fig.height=12}
 rpart.plot(
   x = drzewo_max_klas,
   extra = 104,           # Prawdopodobieństwo + % obserwacji
   under = TRUE,          # Etykiety pod węzłami
   fallen.leaves = TRUE,
+  tweak = 1.2,
   main = "Drzewo klasyfikacyjne: Sukces vs Porażka",
-  box.palette = "BuRd",
-  type = 3
+  box.palette = "Purples",
+  type = 2
 )
 ```
 
@@ -778,7 +779,7 @@ Kluczowym etapem budowy drzewa decyzyjnego jest jego przycięcie, mające na cel
 
 Wykres osypiska obrazuje, jak zmienia się błąd predykcji wraz ze wzrostem wielkości drzewa.
 
-```{r wykres_blad_zlozonosc_klas, echo = F}
+```{r wykres_blad_zlozonosc_klas, echo = F, fig.align='center', fig.width=10, fig.height=4}
 plotcp(drzewo_max_klas)
 ```
 
@@ -809,16 +810,17 @@ drzewo_opt_klas <- prune(drzewo_max_klas,
 
 Poniżej przedstawiono wizualizację optymalnego drzewa decyzyjnego. Uzyskany model charakteryzuje się mniejszą liczbę węzłów niż drzewo maksymalne, co przekłada się na czytelniejsze reguły decyzyjne. Węzły końcowe (liście) zawierają informację o dominującej klasie (`sukces` lub `porażka`), prawdopodobieństwie przynależności do tej klasy oraz odsetku obserwacji trafiających do danego segmentu.
 
-```{r wykres_drzewo_opt_klas}
+```{r wykres_drzewo_opt_klas, echo = F, fig.align='center', fig.width=15, fig.height=9}
 rpart.plot(
   x = drzewo_opt_klas,
   #branch.type = 5,       # Styl gałęzi
   extra = 104,           # Prawdopodobieństwo + % obserwacji
   under = TRUE,          # Etykiety pod węzłami
   fallen.leaves = TRUE,
+  tweak = 1.2,
   main = "Drzewo klasyfikacyjne: Sukces vs Porażka",
-  box.palette = "BuRd",
-  type = 3
+  box.palette = "Purples",
+  type = 2
 )
 ```
 
