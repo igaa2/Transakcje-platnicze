@@ -45,7 +45,8 @@ pacman::p_load(
   tidyr,
   scales,
   patchwork,
-  knitr
+  knitr,
+  caret
 )
 ```
 
@@ -728,19 +729,86 @@ print(prop.table(table(dane_walidacyjne$status_bin)))
 
 ## Klasyfikacja (`status`)
 
-Celem jest przewidzenie: Sukces vs Porażka.
+Celem tego etapu jest zbudowanie modelu drzewa decyzyjnego, który przewidzi, czy transakcja rekurencyjna zakończy się sukcesem, czy porażką. Zgodnie z założeniami projektu, zdefiniowano klasę `porażka` jako pozytywną (kluczową do wykrycia).
 
-Model: Drzewo Klasyfikacyjne (rpart) - Wersja Podstawowa
-- Zbudowanie dużego drzewa (parametr cp bardzo niski).
+### Budowa drzewa maksymalnego
+
+W pierwszym kroku zbudowano drzewo maksymalne (cp = 0), pozwalając na swobodny rozrost struktury. Pozwoli to w kolejnym kroku na znalezienie optymalnego punktu przycięcia.
+
+```{r budowa_drzewa_maksymalnego_klasyfikacja}
+drzewo_max_klas <- rpart(
+  formula = status_bin ~ ., 
+  data = dane_treningowe,
+  method = "class",
+  control = rpart.control(cp = 0, minbucket = 5)
+)
+```
+
 - Wizualizacja drzewa (rpart.plot).
+
+```{r wykres_drzewo_max_klas}
+rpart.plot(
+  x = drzewo_max_klas,
+  branch.type = 5,       # Styl gałęzi
+  extra = 104,           # Prawdopodobieństwo + % obserwacji
+  under = TRUE,          # Etykiety pod węzłami
+  fallen.leaves = TRUE,
+  main = "Drzewo klasyfikacyjne: Sukces vs Porażka",
+  box.palette = "BuRd"
+)
+```
+
 - Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
 
-Strojenie (Pruning):
-- Analiza wykresu błędu w zależności od złożoności (plotcp).
-- Wybór optymalnego punktu przycięcia (tam, gdzie błąd jest najmniejszy).
-- Przycięcie drzewa (prune).
+### Optymalizacja (przycinanie) drzewa
 
-Wizualizacja: rpart.plot (przyciętego drzewa).
+- Analiza wykresu błędu w zależności od złożoności (plotcp).
+
+```{r wykres_blad_zlozonosc_klas, echo = F}
+plotcp(drzewo_max_klas)
+```
+
+**XXX popraw opis**
+Zastosowano regułę 1-SE, aby wybrać najprostsze drzewo, którego błąd mieści się w granicach błędu minimalnego powiększonego o jedno odchylenie standardowe.
+
+```{r wybor_optymalnego_cp_klas}
+# Tabela błędów
+bledy <- drzewo_max_klas$cptable
+
+# Znalezienie minimalnego błędu walidacji krzyżowej
+idx_min <- which.min(bledy[, "xerror"])
+
+# Wyznaczenie granicy błędu
+granica_bledu <- bledy[idx_min, "xerror"] + bledy[idx_min, "xstd"]
+
+# Znalezienie optymalnego CP (pierwszy wynik poniżej granicy)
+idx_opt <- which(bledy[, "xerror"] < granica_bledu)[1]
+cp_optymalne <- bledy[idx_opt, "CP"]
+
+cat("Wybrane optymalne CP:", cp_optymalne, "\n")
+```
+Przycięcie
+
+```{r przyciecie_drzewa_klas}
+drzewo_opt_klas <- prune(drzewo_max_klas, 
+                         cp = cp_optymalne)
+```
+
+Wizualizacja przyciętego drzewa
+
+```{r wykres_drzewo_opt_klas}
+rpart.plot(
+  x = drzewo_opt_klas,
+  branch.type = 5,       # Styl gałęzi
+  extra = 104,           # Prawdopodobieństwo + % obserwacji
+  under = TRUE,          # Etykiety pod węzłami
+  fallen.leaves = TRUE,
+  main = "Drzewo klasyfikacyjne: Sukces vs Porażka",
+  box.palette = "BuRd"
+)
+```
+
+
 Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
 Ważność zmiennych: Wyświetl drzewo$variable.importance. : Które zmienne najbardziej redukują niejednorodność? (np. czy ważniejszy jest countrycode czy amount?).
 
@@ -748,6 +816,7 @@ Ewaluacja:
 - Predykcja na zbiorze walidacyjnym.
 - Macierz pomyłek (Confusion Matrix) - (table(predykcja, rzeczywistosc))
 - Kluczowe: Obliczenie F-miary (pamiętając, że "Porażka" to klasa pozytywna!).
+
 
 
 ## Regresja (`amount`)
