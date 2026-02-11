@@ -850,10 +850,6 @@ drzewo_reg_1 <- rpart(
 ```
 
 
-#### Wizualizacja: rpart.plot.
-Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
-Ważność zmiennych: Czy te same zmienne są ważne dla kwoty, co dla statusu?
-
 Poniższy wykres prezentuje strukturę drzewa wygenerowanego na pełnych danych.
 
 ```{r wykres_drzewo_amount_1, echo = F, fig.align='center', fig.width=15, fig.height=9}
@@ -907,7 +903,7 @@ rpart.plot(drzewo_reg_2,
 ```
 
 
-Struktura drzewa wskazuje, że kluczowymi czynnikami różnicującymi kwotę transakcji są: typ listy (listtype), kategoria sklepu (mccname) oraz pora dnia (hour).
+Struktura drzewa wskazuje, że kluczowymi czynnikami różnicującymi kwotę transakcji są: typ listy (`listtype`), kategoria sklepu (`mccname`) oraz metoda połączenia (`acquirerconnectionmethod`).
 
 ```{r proces_budowy_drzewa_reg_2, echo = F}
 # Przestudiować proces budowy drzewa
@@ -923,8 +919,8 @@ cbind(drzewo_reg_2$variable.importance)
 ```
 
 
-### Strojenie:
-- Ponownie szukamy optymalnego cp (Complexity Parameter) minimalizującego błąd.
+### Strojenie
+Aby uniknąć przeuczenia (overfitting), przeprowadzono procedurę przycinania drzewa. Wykorzystano metodę sprawdzania krzyżowego (cross-validation) do znalezienia optymalnego parametru złożoności `cp`.
 
 ```{r szukanie_optymalnego_cp, echo = F}
 # Ustalić optymalną wielkość drzewa na podstawie sprawdzania krzyżowego
@@ -948,10 +944,9 @@ przycinanie <- function(drzewo) {
 }
 ```
 
+**Finalna struktura modelu**
 
-#### Wizualizacja: rpart.plot.
-Interpretacja liści: Gdzie wpadają najwyższe kwoty? Jakie warunki muszą być spełnione?
-Ważność zmiennych
+Po przycięciu uzyskano stabilny model, który generalizuje wiedzę o kwotach transakcji. Poniższy wykres prezentuje ostateczną postać drzewa regresyjnego.
 
 ```{r przyciecie_drzewa_reg, echo = F}
 drzewo_reg_2_przyciete <- przycinanie(drzewo_reg_2_duze)
@@ -969,31 +964,31 @@ rpart.plot(drzewo_reg_2_przyciete,
            box.palette = "Purples")
 ```
 
+Ranking ważności zmiennych potwierdza dominującą rolę typu listy (`listtype`) oraz kategorii MCC (`mccname`). Istotnym czynnikiem okazała się również godzina transakcji (`hour`), co sugeruje występowanie dobowych wzorców zakupowych.
+
 ```{r waznosc_zmiennych_przyciete, echo=FALSE}
 cbind(drzewo_reg_2_przyciete$variable.importance)
 ```
 
-### Ewaluacja:
-- Błąd SSR (suma kwadratów reszt) lub RMSE na zbiorze walidacyjnym.
-- Miarą błędu jest SSR (Suma Kwadratów Reszt) na zbiorze walidacyjnym.
+### Ewaluacja modeli
+
+Ocenę jakości predykcji przeprowadzono na niezależnym zbiorze walidacyjnym (`dane_wal_reg_99`), ograniczonym do zakresu typowych transakcji. Pozwala to na rzetelne sprawdzenie błędu generalizacji modelu.
 
 
 ```{r dokladnosc_modelu}
-# Ocenić dokładność modelu ####
-mean((dane_reg_99$amount - predict(drzewo_reg_2_przyciete))^2)
+predykcje <- predict(drzewo_reg_2_przyciete, newdata = dane_wal_reg_99)
+rzeczywiste <- dane_wal_reg_99$amount
 
-mean((dane_reg_99$amount - predict(drzewo_reg_2_przyciete))^2)^0.5
+mse <- mean((rzeczywiste - predykcje)^2)
+rmse <- sqrt(mse)
+r2 <- 1 - sum((rzeczywiste - predykcje)^2)/sum((rzeczywiste - mean(rzeczywiste))^2)
 
-# Jaka część zmienności jest wyjaśniona przez model?
-# współczynnik indeterminacji
-sum((dane_reg_99$amount - predict(drzewo_reg_2_przyciete))^2)/sum((dane_reg_99$amount - mean(dane_reg_99$amount))^2)
-
-# współczynnik determinacji (R^2)
-1 - sum((dane_reg_99$amount - predict(drzewo_reg_2_przyciete))^2)/sum((dane_reg_99$amount - mean(dane_reg_99$amount))^2)
+cat("Błąd średniokwadratowy (MSE):", round(mse, 2), "\n")
+cat("Pierwiastek błędu średniokwadratowego (RMSE):", round(rmse, 2), "PLN\n")
+cat("Współczynnik determinacji (R^2):", round(r2, 4), "\n")
 ```
 
-
-Zgodnie z przyjętą strategią modelowania dla typowych obserwacji, ewaluacja modelu (dobór parametru CP oraz obliczenie błędu SSR) została przeprowadzona na zbiorze walidacyjnym ograniczonym do zakresu treningowego (kwoty < `r round(prog_99, 2)` PLN). W finalnym zbiorze testowym wystąpią wartości wyższe. Dla nich model drzewiasty przyjmie predykcję równą maksymalnej wartości w liściu (niedoszacowanie), co jest naturalną cechą drzew regresyjnych, które nie dokonują ekstrapolacji poza zakres danych uczących.
+Współczynnik $R^2$ na poziomie `r round(r2, 2)` oznacza, że model wyjaśnia około `r round(r2 * 100, 0)`% zmienności kwoty transakcji w zbiorze walidacyjnym. Błąd RMSE wynosi `r round(rmse, 2)` PLN, co interpretujemy jako średnie odchylenie prognozy modelu od rzeczywistej kwoty transakcji. Zgodnie z przyjętą strategią, ewaluacja dotyczy typowych obserwacji (99% populacji). Dla transakcji o ekstremalnie wysokich kwotach model będzie systematycznie niedoszacowywał wartości (prognoza równa maksymalnej średniej w liściu), co jest cechą akceptowalną w kontekście specyfiki drzew regresyjnych bez ekstrapolacji.
 
 
 <!-- ## Podejście wielomodelowe -->
