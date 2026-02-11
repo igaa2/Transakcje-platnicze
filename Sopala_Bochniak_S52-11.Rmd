@@ -794,6 +794,7 @@ cp_optymalne <- bledy[idx_opt, "CP"]
 
 cat("Wybrane optymalne CP:", cp_optymalne, "\n")
 ```
+
 Na podstawie wyznaczonego parametru `cp_optymalne` dokonano przycięcia drzewa maksymalnego, usuwając gałęzie nie wnoszące istotnej poprawy jakości klasyfikacji.
 
 ```{r przyciecie_drzewa_klas}
@@ -821,12 +822,67 @@ rpart.plot(
 Interpretacja reguł: Opisz słownie 2-3 najważniejsze ścieżki prowadzące do klasy "Porażka".
 Ważność zmiennych: Wyświetl drzewo$variable.importance. : Które zmienne najbardziej redukują niejednorodność? (np. czy ważniejszy jest countrycode czy amount?).
 
-Ewaluacja:
-- Predykcja na zbiorze walidacyjnym.
-- Macierz pomyłek (Confusion Matrix) - (table(predykcja, rzeczywistosc))
-- Kluczowe: Obliczenie F-miary (pamiętając, że "Porażka" to klasa pozytywna!).
+### Ewaluacja modelu na zbiorze walidacyjnym
+
+W celu ostatecznej weryfikacji jakości zbudowanego modelu, przeprowadzono predykcję na niezależnym zbiorze walidacyjnym. Pozwala to ocenić, czy model nie uległ przeuczeniu i jak radzi sobie z klasyfikacją nowych obserwacji.
+
+Kluczowym narzędziem oceny jest macierz pomyłek, która zestawia decyzje modelu z rzeczywistym statusem transakcji.
+
+```{r predykcja_walidacyjny_klas}
+predykcje_walidacja <- predict(drzewo_opt_klas, 
+                               dane_walidacyjne, 
+                               type = "class")
+```
 
 
+```{r macierz_pomylek_walidacyjny_klas}
+macierz_pomylek <- table(Rzeczywiste = dane_walidacyjne$status_bin, 
+                         Przewidziane = predykcje_walidacja)
+
+kable(macierz_pomylek, caption = "Macierz pomyłek dla zbioru walidacyjnego")
+```
+
+Na podstawie powyższej macierzy wyznaczono kluczowe współczynniki jakości klasyfikacji, przyjmując klasę `porażka` jako pozytywną:
+
+- Precyzja: Jaki odsetek transakcji uznanych przez model za porażki, faktycznie nimi był?
+
+- Czułość: Jaki odsetek wszystkich rzeczywistych porażek udało się wykryć?
+
+- F-miara: Średnia harmoniczna precyzji i czułości (kluczowa miara w przypadku niezbalansowanych klas).
+
+```{r metryki_jakosci_modelu_klas}
+# Wyciągnięcie wartości z macierzy (wiersze = Rzeczywiste, kolumny = Przewidziane)
+TP <- macierz_pomylek["porażka", "porażka"]
+FP <- macierz_pomylek["sukces", "porażka"]
+FN <- macierz_pomylek["porażka", "sukces"]
+TN <- macierz_pomylek["sukces", "sukces"]
+
+# Obliczenie metryk
+precyzja <- TP / (TP + FP)
+czulosc  <- TP / (TP + FN)
+specyficznosc <- TN / (TN + FP)
+f_miara <- 2 * (precyzja * czulosc) / (precyzja + czulosc)
+dokladnosc <- (TP + TN) / sum(macierz_pomylek)
+
+wyniki <- data.frame(
+  Metryka = c("Dokładność", "Precyzja", "Czułość", "F-miara"),
+  Wartość = round(c(dokladnosc, precyzja, czulosc, f_miara), 4)
+)
+
+kable(wyniki, caption = "Miary oceny modelu dla klasy 'porażka'")
+```
+
+Analiza uzyskanych metryk pozwala na szczegółową ocenę zdolności predykcyjnych modelu drzewa decyzyjnego:
+
+- Model poprawnie klasyfikuje ponad 82% wszystkich transakcji. Wynik ten jest jednak zdominowany przez liczną klasę `sukces` i w przypadku danych niezbalansowanych nie powinien być jedynym kryterium oceny.
+
+- Gdy model przewiduje, że transakcja zakończy się porażką, ma rację w ok. 67% przypadków. Jest to satysfakcjonujący wynik, oznaczający, że model generuje stosunkowo mało fałszywych alarmów.
+
+- Czułość to najsłabszy punkt modelu. Algorytm identyfikuje jedynie co piątą rzeczywistą porażkę (21%). Oznacza to, że model jest bardzo konserwatywny - woli przypisać transakcję do klasy większościowej (`sukces`), niż ryzykować błąd.
+
+- Niska wartość F-miary jest bezpośrednią konsekwencją niskiej czułości. Wskazuje to, że podstawowy model drzewa decyzyjnego ma trudności z wyłapywaniem rzadkich zdarzeń, jakimi są błędy transakcji.
+
+Zbudowany model może służyć jako system wspomagający do filtrowania transakcji o bardzo wysokim ryzyku (tam, gdzie pewność jest duża), jednak nie jest wystarczający do wykrycia wszystkich potencjalnych problemów płatniczych.
 
 ## Regresja (`amount`)
 
