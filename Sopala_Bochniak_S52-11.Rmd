@@ -680,7 +680,8 @@ selected_features <- names(unique_counts[unique_counts > 1 & unique_counts <= 25
 # 3. Ręcznie dodajemy kluczowe zmienne ilościowe (które mają dużo poziomów, ale są OK dla drzew)
 # Dodajemy też zmienne celu: 'status_bin' dla klasyfikacji i 'amount' dla regresji
 selected_features <- unique(c(selected_features, 
-                              "amount",
+                              "amount", 
+                              "status_bin", 
                               "months_to_expire", 
                               "days_since_init"))
 
@@ -885,7 +886,7 @@ drzewo_reg_2 <- rpart(
 ```
 
 
-```{r wykres_drzewo_amount_2, echo = F, fig.align='center', fig.width=15, fig.height=7}
+```{r wykres_drzewo_amount_2, echo = F, fig.align='center', fig.width=15}
 rpart.plot(drzewo_reg_2, 
            type = 2,
            extra = 1,
