@@ -996,27 +996,27 @@ sum((dane_reg_99$amount - predict(drzewo_reg_2_przyciete))^2)/sum((dane_reg_99$a
 Zgodnie z przyjętą strategią modelowania dla typowych obserwacji, ewaluacja modelu (dobór parametru CP oraz obliczenie błędu SSR) została przeprowadzona na zbiorze walidacyjnym ograniczonym do zakresu treningowego (kwoty < `r round(prog_99, 2)` PLN). W finalnym zbiorze testowym wystąpią wartości wyższe. Dla nich model drzewiasty przyjmie predykcję równą maksymalnej wartości w liściu (niedoszacowanie), co jest naturalną cechą drzew regresyjnych, które nie dokonują ekstrapolacji poza zakres danych uczących.
 
 
-## Podejście wielomodelowe
+<!-- ## Podejście wielomodelowe -->
 
-<!-- Skoro masz wymóg "wyboru najlepszego modelu", warto zbudować drugi, konkurencyjny model dla obu zadań, aby mieć co porównywać. -->
+<!-- <!-- Skoro masz wymóg "wyboru najlepszego modelu", warto zbudować drugi, konkurencyjny model dla obu zadań, aby mieć co porównywać. --> 
 
-<!-- Opcja A (Prosta): Las Losowy (randomForest). Jest to naturalne rozwinięcie drzew. Zazwyczaj daje lepsze wyniki, ale jest "czarną skrzynką" (trudniej narysować ładny wykres). -->
+<!-- <!-- Opcja A (Prosta): Las Losowy (randomForest). Jest to naturalne rozwinięcie drzew. Zazwyczaj daje lepsze wyniki, ale jest "czarną skrzynką" (trudniej narysować ładny wykres). --> 
 
-<!-- Opcja B (Alternatywna): Regresja Logistyczna (dla statusu) i Liniowa (dla kwoty). To pokaże, czy złożone metody nieparametryczne w ogóle dają przewagę nad prostą statystyką. -->
+<!-- <!-- Opcja B (Alternatywna): Regresja Logistyczna (dla statusu) i Liniowa (dla kwoty). To pokaże, czy złożone metody nieparametryczne w ogóle dają przewagę nad prostą statystyką. --> 
 
-Budowa modelu:
-- Użycie randomForest (lub bagging z adabag jak na zajęciach) dla zmiennej status.
-- Ustalenie liczby drzew (wykres błędu w zależności od liczby drzew).
+<!-- Budowa modelu: -->
+<!-- - Użycie randomForest (lub bagging z adabag jak na zajęciach) dla zmiennej status. -->
+<!-- - Ustalenie liczby drzew (wykres błędu w zależności od liczby drzew). -->
 
-Interpretacja (Specyficzna dla lasów)
-Tutaj nie narysujesz jednego drzewa, ALE musisz pokazać wykres ważności zmiennych (varImpPlot lub importance).
+<!-- Interpretacja (Specyficzna dla lasów) -->
+<!-- Tutaj nie narysujesz jednego drzewa, ALE musisz pokazać wykres ważności zmiennych (varImpPlot lub importance). -->
 
-Pytanie do raportu: Czy Las Losowy wskazuje te same ważne zmienne co pojedyncze drzewo, czy znalazł coś nowego?
+<!-- Pytanie do raportu: Czy Las Losowy wskazuje te same ważne zmienne co pojedyncze drzewo, czy znalazł coś nowego? -->
 
-Ewaluacja
-- F-miara na zbiorze walidacyjnym.
+<!-- Ewaluacja -->
+<!-- - F-miara na zbiorze walidacyjnym. -->
 
-Porównanie wyniku z pojedynczym drzewem (czy warto było komplikować model dla 1% zysku?).
+<!-- Porównanie wyniku z pojedynczym drzewem (czy warto było komplikować model dla 1% zysku?). -->
 
 ## Ocena uzyskanych modeli
 
